@@ -22,6 +22,8 @@ class PostFreeSurferFilesOutputSpec(TraitedSpec):
 
     # volumes
     wmparc = File(desc='wmparc in 2 mm', exists=True)
+    subcortical = File(desc='subcortical regions parcellated in 2 mm', 
+                       exists=True)
 
     # surfaces in 32k_fs_LR
     L_atlasroi_32k_fs_LR = File(desc='atlasroi', exists=True)
@@ -46,6 +48,7 @@ class PostFreeSurferFiles(SimpleInterface):
         self._results['down_sample_folder'] = opj(self._results['mninonlinear'], 'fsaverage_LR32k')
 
         self._results['wmparc'] = opj(self._results['roi_folder'], 'wmparc.2.nii.gz')
+        self._results['subcortical'] = opj(self._results['roi_folder'], 'ROIs.2.nii.gz')
 
         surface_template = '{subject}.{hemi}.{structure}.32k_fs_LR.{gii_type}.gii'
         self._results['L_atlasroi_32k_fs_LR'] = opj(self._results['down_sample_folder'],
