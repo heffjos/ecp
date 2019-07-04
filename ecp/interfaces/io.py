@@ -6,44 +6,16 @@ from nipype.interfaces.base import (
 )
 
 # DataSink inputs
-class DataSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+class DirectoryDataSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     '''
     '''
 
     # Init inputspec data attributes
     base_directory = Directory(
-        desc='Path to the base directory for storing data.')
-    container = Str(
-        desc='Folder within base directory in which to store output')
-    parameterization = traits.Bool(
-        True, usedefault=True, desc='store output in parametrized structure')
-    strip_dir = Directory(desc='path to strip out of filename')
-    substitutions = InputMultiPath(
-        traits.Tuple(Str, Str),
-        desc=('List of 2-tuples reflecting string '
-              'to substitute and string to replace '
-              'it with'))
-    regexp_substitutions = \
-        InputMultiPath(traits.Tuple(Str, Str),
-                       desc=('List of 2-tuples reflecting a pair of a '
-                             'Python regexp pattern and a replacement '
-                             'string. Invoked after string `substitutions`'))
-
+        desc='Path to the base directory for storing data.',
+        madatory=True,
+        exists=True)
     _outputs = traits.Dict(Str, value={}, usedefault=True)
-    remove_dest_dir = traits.Bool(
-        False, usedefault=True, desc='remove dest directory when copying dirs')
-
-    # AWS S3 data attributes
-    creds_path = Str(desc='Filepath to AWS credentials file for S3 bucket '
-                     'access; if not specified, the credentials will '
-                     'be taken from the AWS_ACCESS_KEY_ID and '
-                     'AWS_SECRET_ACCESS_KEY environment variables')
-    encrypt_bucket_keys = traits.Bool(desc='Flag indicating whether to use S3 '
-                                      'server-side AES-256 encryption')
-    # Set this if user wishes to override the bucket with their own
-    bucket = traits.Any(desc='Boto3 S3 bucket for manual override of bucket')
-    # Set this if user wishes to have local copy of files as well
-    local_copy = Str(desc='Copy files locally as well as to S3 bucket')
 
     # Set call-able inputs attributes
     def __setattr__(self, key, value):
