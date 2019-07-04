@@ -1,9 +1,15 @@
+import os
+
 from nipype.interfaces.base import (
     traits, isdefined, Undefined,
     TraitedSpec, BaseInterfaceInputSpec, DynamicTraitedSpec,
     File, Directory, InputMultiObject, OutputMultiObject, Str,
     SimpleInterface,
 )
+from nipype import config
+from nipype.utils.misc import str2bool
+from nipype.utils.filemanip import ensure_list, copyfile
+from nipype.interfaces.io import IOBase
 
 # DataSink inputs
 class DirectoryDataSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -16,18 +22,20 @@ class DirectoryDataSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         madatory=True,
         exists=True)
     _outputs = traits.Dict(Str, value={}, usedefault=True)
+    remove_dest_dir = traits.Bool(
+        False, usedefault=True, desc='remove dest directory when copying dirs')
 
     # Set call-able inputs attributes
     def __setattr__(self, key, value):
 
         if key not in self.copyable_trait_names():
             if not isdefined(value):
-                super(DataSinkInputSpec, self).__setattr__(key, value)
+                super(DirectoryDataSinkInputSpec, self).__setattr__(key, value)
             self._outputs[key] = value
         else:
             if key in self._outputs:
                 self._outputs[key] = value
-            super(DataSinkInputSpec, self).__setattr__(key, value)
+            super(DirectoryDataSinkInputSpec, self).__setattr__(key, value)
 
 
 # DataSink outputs
