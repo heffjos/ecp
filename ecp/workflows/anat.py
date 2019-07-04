@@ -9,10 +9,11 @@ except ImportError:
 
 from ..interfaces import maths
 from ..interfaces import workbench as wb
+from ..interfaces.io import DirectoryDataSink
 
 from .. import data
 
-def init_hcp_segment_anat_wf(name='hcp_segment_anat_wf'):
+def init_hcp_segment_anat_wf(out_dir, name='hcp_segment_anat_wf'):
     """
     This workflow generates WM, CSF and GM masks using the same 
     pipeline from the HCP pipeline. The wm and csf masks are created by 
@@ -61,9 +62,7 @@ def init_hcp_segment_anat_wf(name='hcp_segment_anat_wf'):
         fields=['wmparc', 'l_atlasroi', 'l_midthickness', 'l_white', 'l_pial', 
                 'r_atlasroi', 'r_midthickness', 'r_white', 'r_pial', 'ROIs']),
         name='inputnode')
-    outputnode = Node(IdentityInterface(
-        fields=['wm_mask', 'gm_mask', 'csf_mask']),
-        name='outputnode')
+    ds_out = Node(DirectoryDataSink(base_directory=out_dir), name='ds_out')
 
     # gm mask nodes
     l_gm_mask = Node(wb.MetricToVolumeMappingRC(out_file='l_gm_mask.nii.gz'), 
@@ -122,9 +121,9 @@ def init_hcp_segment_anat_wf(name='hcp_segment_anat_wf'):
         (csf_vol, final_csf, [('out_file', 'in_file')]),
         (final_gm, final_csf, [('out_file', 'in_file2')]),
         # output
-        (final_wm, outputnode, [('out_file', 'wm_mask')]),
-        (final_gm, outputnode, [('out_file', 'gm_mask')]),
-        (final_csf, outputnode, [('out_file', 'csf_mask')])
+        (final_wm, ds_out, [('out_file', 'wm_mask')]),
+        (final_gm, ds_out, [('out_file', 'gm_mask')]),
+        (final_csf, ds_out, [('out_file', 'csf_mask')])
     ])
 
     return wf
