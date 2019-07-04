@@ -31,7 +31,7 @@ class DirectoryDataSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
 
 # DataSink outputs
-class DataSinkOutputSpec(TraitedSpec):
+class DirectoryDataSinkOutputSpec(TraitedSpec):
 
     # Init out file
     out_file = traits.Any(desc='datasink output')
