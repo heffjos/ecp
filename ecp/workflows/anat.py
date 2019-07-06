@@ -7,13 +7,11 @@ try:
 except ImportError:
     import importlib_resources as pkg_resources
 
-from ..interfaces import maths
 from ..interfaces import workbench as wb
-from ..interfaces.io import DirectoryDataSink
 
 from .. import data
 
-def init_hcp_segment_anat_wf(out_dir, name='hcp_segment_anat_wf'):
+def init_hcp_segment_anat_wf(name='hcp_segment_anat_wf'):
     """
     This workflow generates WM, CSF and GM masks using the same 
     pipeline from the HCP pipeline. The wm and csf masks are created by 
@@ -62,18 +60,27 @@ def init_hcp_segment_anat_wf(out_dir, name='hcp_segment_anat_wf'):
         fields=['wmparc', 'l_atlasroi', 'l_midthickness', 'l_white', 'l_pial', 
                 'r_atlasroi', 'r_midthickness', 'r_white', 'r_pial', 'ROIs']),
         name='inputnode')
-    ds_out = Node(DirectoryDataSink(base_directory=out_dir), name='ds_out')
+    outputnode = Node(IdentityInterface(
+        fields=['cort_gm_mask', 'subcort_gm_mask', 'gm_mask', 
+                'wm_mask', 'csf_mask']),
+        name='outputnode')
 
     # gm mask nodes
     l_gm_mask = Node(wb.MetricToVolumeMappingRC(out_file='l_gm_mask.nii.gz'), 
                      name='l_gm_mask')
     r_gm_mask = Node(wb.MetricToVolumeMappingRC(out_file='r_gm_mask.nii.gz'),
                      name='r_gm_mask')
-    final_gm = Node(maths.Augmented1ImageMaths(out_file='gm_mask.nii.gz',
-                                               op_string='-add',
-                                               op_string2='-add',
-                                               op_string_end='-dilD -dilD -bin'), 
-                    name='final_gm')
+    cort_gm_mask = Node(ImageMaths(out_file='cortical_gm_mask.nii.gz',
+                                   op_string='-add',
+                                   args='-bin'),
+                        name='cort_gm_mask')
+    subcort_gm_mask = Node(ImageMaths(out_file='subcortical_gm_mask.nii.gz',
+                                      op_string='-bin'),
+                           name='subcort_gm_mask')
+    brain_gm_mask = Node(ImageMaths(out_file='brain_gm_mask.nii.gz',
+                                    op_string='-add',
+                                    args='-dilD -dilD'),
+                         name='brain_gm_mask')
 
     # wm mask nodes
     wm_vol = Node(wb.VolumeLabelImport(out_file='wm_vol.nii.gz',
@@ -109,21 +116,25 @@ def init_hcp_segment_anat_wf(out_dir, name='hcp_segment_anat_wf'):
                                 ('wmparc', 'volume_space'),
                                 ('r_pial', 'inner_surf'),
                                 ('r_white', 'outer_surf')]),
-        (inputnode, final_gm, [('ROIs', 'in_file')]),
-        (l_gm_mask, final_gm, [('out_file', 'in_file2')]),
-        (r_gm_mask, final_gm, [('out_file', 'in_file3')]),
+        (l_gm_mask, cort_gm_mask, [('out_file', 'in_file')]),
+        (r_gm_mask, cort_gm_mask, [('out_file', 'in_file2')]),
+        (inputnode, subcort_gm_mask, [('ROIs', 'in_file')]),
+        (cort_gm_mask, brain_gm_mask, [('out_file', 'in_file')]),
+        (subcort_gm_mask, brain_gm_mask, [('out_file', 'in_file2')]),
         # wm
         (inputnode, wm_vol, [('wmparc', 'in_file')]),
         (wm_vol, final_wm, [('out_file', 'in_file')]),
-        (final_gm, final_wm, [('out_file', 'in_file2')]),
+        (brain_gm_mask, final_wm, [('out_file', 'in_file2')]),
         # csf
         (inputnode, csf_vol, [('wmparc', 'in_file')]),
         (csf_vol, final_csf, [('out_file', 'in_file')]),
-        (final_gm, final_csf, [('out_file', 'in_file2')]),
+        (brain_gm_mask, final_csf, [('out_file', 'in_file2')]),
         # output
-        (final_wm, ds_out, [('out_file', 'wm_mask')]),
-        (final_gm, ds_out, [('out_file', 'gm_mask')]),
-        (final_csf, ds_out, [('out_file', 'csf_mask')])
+        (cort_gm_mask, outputnode, [('out_file', 'cort_gm_mask')]),
+        (subcort_gm_mask, outputnode, [('out_file', 'subcort_gm_mask')]),
+        (brain_gm_mask, outputnode, [('out_file', 'brain_gm_mask')]),
+        (final_wm, outputnode, [('out_file', 'wm_mask')]),
+        (final_csf, outputnode, [('out_file', 'csf_mask')])
     ])
 
     return wf
