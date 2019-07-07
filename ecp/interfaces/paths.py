@@ -94,7 +94,7 @@ class PostFreeSurferFiles(SimpleInterface):
                                     gii_type='surf'))
         return runtime
 
-class fMRIVolumeFilesInputSpec(BaseInterfaceInputSpec):
+class HcpTaskVolumeFilesInputSpec(BaseInterfaceInputSpec):
     mninonlinear = Directory(
         desc='MNINonLinear directory for subject',
         madatory=True,
@@ -106,24 +106,20 @@ class fMRIVolumeFilesInputSpec(BaseInterfaceInputSpec):
         desc='task name',
         mandatory=True)
     
-class fMRIVolumeFilesOutputSpec(TraitedSpec):
+class HcpTaskVolumeFilesOutputSpec(TraitedSpec):
     results_dir = Directory(desc='Results', exists=True)
     task_dir = Directory(desc='results task directory', exists=True)
 
-    # TODO: put movement regressors order and units in desc
+    # {trans_x, trans_y, tran_z, rot_x, rot_y, rot_z} trans=mm, rot=degrees
     movement_regressors = File(desc='movement regressors', exists=True)
     movement_regressors_dt = File(desc='derivative of movement regressors', exists=True)
-    csf_regressor = File(desc='spatial mean of csf signal over time')
-    wm_regressor = File(desc='spatial mean of wm signal over time')
-    gs_regressor = File(desc='spatial mean of global signal over time')
-    fd_regressor = File(desc='frame displacment over time')
 
-    volume_preproc = File(desc='preprocessed task volume in MNI space', exists=True)
-    cifti_preproc = File(desc='preprocessed task in greyordinates space', exists=True)
+    mask = File(desc='mask for volume in MNI 2mm space', exists=True)
+    preproc = File(desc='preprocessed task volume in MNI space', exists=True)
 
-class fMRIVolumeFiles(SimpleInterface):
-    input_spec = fMRIVolumeFilesInputSpec
-    output_spec = fMRIVolumeFilesOutputSpec
+class HcpTaskVolumeFiles(SimpleInterface):
+    input_spec = HcpTaskVolumeFilesInputSpec
+    output_spec = HcpTaskVolumeFilesOutputSpec
 
     def _run_interface(self, runtime):
         self._results['results_dir'] = opj(self.inputs.mninonlinear, 'Results')
@@ -133,13 +129,11 @@ class fMRIVolumeFiles(SimpleInterface):
                                                    'Movement_Regressors.txt')
         self._results['movement_regressors_dt'] = opj(self._results['task_dir'],
                                                       'Movement_Regressors_dt.txt')
-        self._results['csf_regressor'] = opj(self._results['task_dir'], 'csf.1D')
-        self._results['gs_regressor'] = opj(self._results['task_dir'], 'gs.1D')
-        self._results['fd_regressor'] = opj(self._results['task_dir'], 'fs_regressor.1D')
 
-        self._results['volume_preproc'] = opj(self._results['task_dir'],
-                                              self.inputs.task + '.nii.gz')
-
+        self._results['mask'] = opj(self._results['task_dir'],
+                                    'brainmask_fs.2.nii.gz')
+        self._results['preproc'] = opj(self._results['task_dir'],
+                                       self.inputs.task + '.nii.gz')
         return runtime
     
     
