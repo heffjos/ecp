@@ -135,5 +135,33 @@ class HcpTaskVolumeFiles(SimpleInterface):
         self._results['preproc'] = opj(self._results['task_dir'],
                                        self.inputs.task + '.nii.gz')
         return runtime
-    
-    
+
+class HcpTaskCiftiFilesInputSpec(BaseInterfaceSpec):
+    mninonlinear = Directory(
+        desc='MNINonLinear directory for subject',
+        madatory=True,
+        exists=True)
+    subject = traits.Str(
+        desc='subject id',
+        mandatory=True)
+    task = traits.Str(
+        desc='task name',
+        mandatory=True)
+
+class HcpTaskCiftiFilesOutputSpec(TraitedSpec):
+    results_dir = Directory(desc='Results', exists=True)
+    task_dir = Directory(desc='results task directory', exists=True)
+
+    # {trans_x, trans_y, tran_z, rot_x, rot_y, rot_z} trans=mm, rot=degrees
+    preproc = File(desc'preprocessed task cifti file in fs_LR32k space', exist=True)
+
+class HcpTaskCiftiFiles(SimpleInterface):
+    input_spec = HcpTaskCiftiFilesInputSpec
+    output_spec = HcpTaskCiftiFilesOutpuSpec
+
+    def _run_interface(self, runtim):
+        self._results['results_dir'] = opj(self.inputs.mninonlinear, 'Results')
+        self._results['task_dir'] = opj(self._results['results_dir'], self.inputs.task)
+
+        self._results['preproc'] = opj(self._results['task_dir'],
+                                       self.inputs.task + '_Atlas.dtseries.nii')
