@@ -178,6 +178,92 @@ class MetricToVolumeMappingRC(CommandLine):
         outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
 
+class CiftiConvertToNiftiInputSpec(CommandLineInputSpec):
+    in_file = File(
+        desc='the input cifti file',
+        argstr='%s',
+        position=0,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    out_file = File(
+        desc='the output nifit file',
+        argstr='%s',
+        position=1,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    smaller_file = traits.Bool(
+        desc='use bettter-fitting dimension lenghts',
+        argstr='-smaller-file')
+    smaller_dims=traits.Bool(
+        desc='minimize the largest dimension, for tools taht do not like large indices',
+        argstr='--smaller_dims')
+
+class CiftiConvertToNiftiInputSpec(TraitedSpec):
+    out_file = File(desc='output file', exists=True)
+
+class CiftiConvertToNifti(WBCommand):
+    _cmd = 'wb_command -cifti-convert'
+    input_spec = CiftiConverToNiftiInputSpec
+    output_spec = CiftiConverToNiftiOutpuSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['outfile'] = os.path.abspath(self.inputs.out_file)
+        return outputs
+
+class CiftiConvertFromNiftiInputSpec(CommandLineInputSpec):
+    in_file = File(
+        desc='the input nifti file'
+        argstr='%s',
+        position=0,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    cifti_template = File(    
+        desc='a cifti file with th dimension(s) and mapping(s) that should be used'
+        argstr='%s',
+        position=1,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    out_file = File(    
+        desc='the output cifti file'
+        argstr='%s',
+        position=2,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    reset_timepoints = traits.Tuple(
+        traits.Float, 
+        traits.Float,
+        desc=('reset the mapping along rows to timepoints\n'
+              'taking length from the nifti file\n'
+              '<timestep> - the desired time between frames\n'
+              '<timestart> - the desired tiem offset of the intitial frame'),
+        argstr='-reset-timepoints %f %f')
+    unit = traits.Str(
+        desc='use a unit other than time (default SECOND)',
+        requires=['reset_timpoints'],
+        argstr='-unit %s')
+    reset_scalars = traits.Bool(
+        desc='reset mapping along rows to scalars, taking lenght from the nifti file',
+        argstr='-reset-scalars')
+
+class CiftiConvertFromNiftiOutputSpec(TraitedSpec):
+    out_file = File(desc='output file', exist=True)
+
+class CiftiConvertFromNifti(WMCommand):
+    _cmd = 'wb_command -from-nifti'
+    input_spec = CiftiConvertFromNiftiInputSpec
+    output_spec = CiftiConvertFromNiftiOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['outfile'] = os.path.abspath(self.inputs.out_file)
+        return outputs
+
 def check_wb():
     ver = Info.version()
     if ver:
