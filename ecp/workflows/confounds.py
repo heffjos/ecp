@@ -113,9 +113,6 @@ def init_bold_confs_wf(
 
         confounds_file
             TSV of all aggregated confounds
-        rois_report
-            Reportlet visualizing white-matter/CSF mask used for aCompCor,
-            the ROI for tCompCor and the BOLD brain mask.
         confounds_metadata
             Confounds metadata dictionary.
 
