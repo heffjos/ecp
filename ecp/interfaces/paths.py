@@ -21,9 +21,11 @@ class PostFreeSurferFilesOutputSpec(TraitedSpec):
     down_sample_folder = Directory(desc='DownSampleFolder', exists=True)
 
     # volumes
-    wmparc = File(desc='wmparc in 2 mm', exists=True)
-    subcortical = File(desc='subcortical regions parcellated in 2 mm', 
+    wmparc = File(desc='wmparc in 2 mm MNI', exists=True)
+    subcortical = File(desc='subcortical regions parcellated in 2 mm MNI', 
                        exists=True)
+    brainmask_fs = File(desc='freesurfer brain mask in MNI space with anat dims',
+                        exists=True)
 
     # surfaces in 32k_fs_LR
     L_atlasroi_32k_fs_LR = File(desc='atlasroi', exists=True)
@@ -49,6 +51,7 @@ class PostFreeSurferFiles(SimpleInterface):
 
         self._results['wmparc'] = opj(self._results['roi_folder'], 'wmparc.2.nii.gz')
         self._results['subcortical'] = opj(self._results['roi_folder'], 'ROIs.2.nii.gz')
+        self._results['brainmask_fs'] = opj(self._results['mninonlinear'], 'brainmask_fs.nii.gz')
 
         surface_template = '{subject}.{hemi}.{structure}.32k_fs_LR.{gii_type}.gii'
         self._results['L_atlasroi_32k_fs_LR'] = opj(self._results['down_sample_folder'],
@@ -136,7 +139,7 @@ class HcpTaskVolumeFiles(SimpleInterface):
                                        self.inputs.task + '.nii.gz')
         return runtime
 
-class HcpTaskCiftiFilesInputSpec(BaseInterfaceSpec):
+class HcpTaskCiftiFilesInputSpec(BaseInterfaceInputSpec):
     mninonlinear = Directory(
         desc='MNINonLinear directory for subject',
         madatory=True,
@@ -153,15 +156,16 @@ class HcpTaskCiftiFilesOutputSpec(TraitedSpec):
     task_dir = Directory(desc='results task directory', exists=True)
 
     # {trans_x, trans_y, tran_z, rot_x, rot_y, rot_z} trans=mm, rot=degrees
-    preproc = File(desc'preprocessed task cifti file in fs_LR32k space', exist=True)
+    preproc = File(desc='preprocessed task cifti file in fs_LR32k space', exists=True)
 
 class HcpTaskCiftiFiles(SimpleInterface):
     input_spec = HcpTaskCiftiFilesInputSpec
-    output_spec = HcpTaskCiftiFilesOutpuSpec
+    output_spec = HcpTaskCiftiFilesOutputSpec
 
-    def _run_interface(self, runtim):
+    def _run_interface(self, runtime):
         self._results['results_dir'] = opj(self.inputs.mninonlinear, 'Results')
         self._results['task_dir'] = opj(self._results['results_dir'], self.inputs.task)
 
         self._results['preproc'] = opj(self._results['task_dir'],
                                        self.inputs.task + '_Atlas.dtseries.nii')
+        return runtime
