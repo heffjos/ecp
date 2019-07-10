@@ -11,10 +11,6 @@ class Augmented1ImageMathsInputSpec(ImageMathsInputSpec):
         argstr='%s',
         position=4,
         desc='string defining second operation')
-    op_string_end = traits.Str(
-        argstr='%s',
-        position=-3,
-        desc='end operation')
 
 class Augmented1ImageMaths(ImageMaths):
     input_spec = Augmented1ImageMathsInputSpec
