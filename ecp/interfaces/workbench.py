@@ -190,9 +190,7 @@ class CiftiConvertToNiftiInputSpec(CommandLineInputSpec):
         desc='the output nifit file',
         argstr='%s',
         position=1,
-        mandatory=True,
-        exists=True,
-        copyfile=False)
+        mandatory=True)
     smaller_file = traits.Bool(
         desc='use bettter-fitting dimension lenghts',
         argstr='-smaller-file')
@@ -200,41 +198,39 @@ class CiftiConvertToNiftiInputSpec(CommandLineInputSpec):
         desc='minimize the largest dimension, for tools taht do not like large indices',
         argstr='--smaller_dims')
 
-class CiftiConvertToNiftiInputSpec(TraitedSpec):
+class CiftiConvertToNiftiOutputSpec(TraitedSpec):
     out_file = File(desc='output file', exists=True)
 
 class CiftiConvertToNifti(WBCommand):
-    _cmd = 'wb_command -cifti-convert'
-    input_spec = CiftiConverToNiftiInputSpec
-    output_spec = CiftiConverToNiftiOutpuSpec
+    _cmd = 'wb_command -cifti-convert -to-nifti'
+    input_spec = CiftiConvertToNiftiInputSpec
+    output_spec = CiftiConvertToNiftiOutputSpec
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['outfile'] = os.path.abspath(self.inputs.out_file)
+        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
 
 class CiftiConvertFromNiftiInputSpec(CommandLineInputSpec):
     in_file = File(
-        desc='the input nifti file'
+        desc='the input nifti file',
         argstr='%s',
         position=0,
         mandatory=True,
         exists=True,
         copyfile=False)
     cifti_template = File(    
-        desc='a cifti file with th dimension(s) and mapping(s) that should be used'
+        desc='a cifti file with th dimension(s) and mapping(s) that should be used',
         argstr='%s',
         position=1,
         mandatory=True,
         exists=True,
         copyfile=False)
     out_file = File(    
-        desc='the output cifti file'
+        desc='the output cifti file',
         argstr='%s',
         position=2,
-        mandatory=True,
-        exists=True,
-        copyfile=False)
+        mandatory=True)
     reset_timepoints = traits.Tuple(
         traits.Float, 
         traits.Float,
@@ -254,14 +250,14 @@ class CiftiConvertFromNiftiInputSpec(CommandLineInputSpec):
 class CiftiConvertFromNiftiOutputSpec(TraitedSpec):
     out_file = File(desc='output file', exist=True)
 
-class CiftiConvertFromNifti(WMCommand):
-    _cmd = 'wb_command -from-nifti'
+class CiftiConvertFromNifti(WBCommand):
+    _cmd = 'wb_command -cifti-convert -from-nifti'
     input_spec = CiftiConvertFromNiftiInputSpec
     output_spec = CiftiConvertFromNiftiOutputSpec
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['outfile'] = os.path.abspath(self.inputs.out_file)
+        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
 
 def check_wb():
