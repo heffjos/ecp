@@ -2,6 +2,7 @@ import os
 import sys
 
 from argparse import ArgumentParser
+from multiprocessing import cpu_count
 
 jheffernan = '/rcc/stor1/depts/neurology/users/jheffernan'
 sys.path.insert(0, os.path.join(jheffernan, 'repositories', 'ecp'))
@@ -32,12 +33,16 @@ def get_parser():
                         help='the task names to prep')
     parser.add_argument('--skip-vols', action='store', type=int, default=None,
                         help='the number of non-steady state volumes')
+    parser.add_argument('--n-procs', action='store', type=int, default=None,
+                        help='number of processors to use')
 
     return parser
 
 def main():
     parser = get_parser()
     args = parser.parse_args()
+
+    n_procs = args.n_procs if args.n_procs else cpu_count()
 
     wfs = []
     for participant in args.participants:
@@ -48,7 +53,7 @@ def main():
             args.skip_vols))
 
     for wf in wfs:
-        wf.run(plugin='MultiProc', plugin_args={'n_procs' : 4})
+        wf.run(plugin='MultiProc', plugin_args={'n_procs' : n_procs})
 
     return 0
 
