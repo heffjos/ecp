@@ -6,9 +6,6 @@ import pandas as pd
 from argparse import ArgumentParser
 from multiprocessing import cpu_count
 
-jheffernan = '/rcc/stor1/depts/neurology/users/jheffernan'
-sys.path.insert(0, os.path.join(jheffernan, 'repositories', 'ecp'))
-
 from ecp.workflows.base import init_cleanprep_wf
 
 def get_parser():

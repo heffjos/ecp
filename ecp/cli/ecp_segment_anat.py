@@ -3,9 +3,6 @@ import sys
 
 from argparse import ArgumentParser
 
-jheffernan = '/rcc/stor1/depts/neurology/users/jheffernan'
-sys.path.insert(0, os.path.join(jheffernan, 'repositories', 'ecp'))
-
 from ecp.interfaces.paths import PostFreeSurferFiles
 from ecp.workflows.anat import init_hcp_segment_anat_wf
 
