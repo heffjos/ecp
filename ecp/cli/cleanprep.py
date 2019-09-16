@@ -23,9 +23,8 @@ def get_parser():
 
     return parser
 
-def main():
-    parser = get_parser()
-    args = parser.parse_args()
+def run_cleanprep_wf(args):
+
     data_dir = args.data_dir
     work_data = args.work_dir
     out_dir = args.out_dir
@@ -60,6 +59,12 @@ def main():
         wf.run(plugin='MultiProc', plugin_args={'n_procs' : n_procs})
 
     return 0
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+
+    return run_cleanprep_wf(args)
 
 if __name__ == '__main__':
     main()
