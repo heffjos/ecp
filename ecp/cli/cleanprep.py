@@ -26,7 +26,7 @@ def get_parser():
 def run_cleanprep_wf(args):
 
     data_dir = args.data_dir
-    work_data = args.work_dir
+    work_dir = args.work_dir
     out_dir = args.out_dir
     spec_file = args.spec_file
 

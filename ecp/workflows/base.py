@@ -85,7 +85,7 @@ def init_cleanprep_wf(
 
         movement = Node(
             GetHcpMovement(hcp_movement=task_vol_files.movement_regressors,
-                           task_skipped_vols=skipped),
+                           skipped_vols=int(task_skipped_vols)),
             name='movement')
         
         bold_confs_wf = init_bold_confs_wf(
@@ -97,7 +97,7 @@ def init_cleanprep_wf(
         inputnode = bold_confs_wf.inputs.inputnode
         inputnode.bold = task_vol_files.preproc
         inputnode.bold_mask = task_vol_files.mask
-        inputnode.skip_vols = skip_vols
+        inputnode.skip_vols = 0
 
         cifti_convert_to_nifti = Node(CiftiConvertToNifti(
             in_file=task_cifti_files.preproc, out_file='fakenifti.nii.gz'), 
