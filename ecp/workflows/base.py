@@ -23,9 +23,9 @@ def init_cleanprep_wf(
     out_dir,
     subject,
     tasks,
-    skip_vols,
+    skipped_vols,
 ):
-    anat_name_template = 'sub-{subject}_T1.nii.gz'.format(subject=subject)
+    anat_name_template = f'sub-{subject}_T1.nii.gz'
 
     reportlets_dir = os.path.join(work_dir, 'reportlets')
 
@@ -65,7 +65,7 @@ def init_cleanprep_wf(
         (hcp_segment_anat_wf, ds_cortical_gm_mask, [('outputnode.cort_gm_mask', 'in_file')]),
     ])
 
-    for task in tasks:
+    for task, task_skipped_vols in zip(tasks, skipped_vols):
         func_name_template = hcp_to_bids(task, subject)
         task_wf = Workflow(name=task + '_wf')
 
@@ -84,7 +84,8 @@ def init_cleanprep_wf(
             task=task).run().outputs
 
         movement = Node(
-            GetHcpMovement(hcp_movement=task_vol_files.movement_regressors),
+            GetHcpMovement(hcp_movement=task_vol_files.movement_regressors,
+                           task_skipped_vols=skipped),
             name='movement')
         
         bold_confs_wf = init_bold_confs_wf(

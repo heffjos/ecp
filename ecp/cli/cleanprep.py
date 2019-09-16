@@ -18,8 +18,6 @@ def get_parser():
     parser.add_argument('spec_file', action='store', help='csv spec file')
     parser.add_argument('--participants', action='store', nargs='+',
                         help='participants to be prepped')
-    parser.add_argument('--skip-vols', action='store', type=int, default=None,
-                        help='the number of non-steady state volumes')
     parser.add_argument('--n-procs', action='store', type=int, default=None,
                         help='number of processors to use')
 
@@ -34,7 +32,6 @@ def main():
     spec_file = args.spec_file
 
     participants = args.participants
-    skip_vols = args.skip_vols
     n_procs = args.n_procs
 
     spec = pd.read_csv(spec_file)
@@ -52,10 +49,12 @@ def main():
     for participant in participants:
         print(f'Building workflow for participant: {participant}')
 
-        tasks = list((spec['subject'] == participant)['task'])
+        participant_info = spec[spec['subject'] == participant]
+        tasks = list(participant_info['task'])
+        skipped_vols = list(participant_info['skipped_vols'])
 
         wfs.append(init_cleanprep_wf(
-            data_dir, work_dir, out_dir, participant, tasks, skip_vols))
+            data_dir, work_dir, out_dir, participant, tasks, skipped_vols))
 
     for wf in wfs:
         wf.run(plugin='MultiProc', plugin_args={'n_procs' : n_procs})
