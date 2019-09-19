@@ -260,6 +260,75 @@ class CiftiConvertFromNifti(WBCommand):
         outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
 
+class CiftiParcellateInputSpec(CommandLineInputSpec):
+    in_file = File(
+        desc='the cifti file to parcellate',
+        argstr='%s',
+        position=0,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    cifti_label = File(
+        desc='a cifti label file to use for the parcellation',
+        argstr='%s',
+        position=1,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    direction = traits.Str(
+        desc='which mapping to parcellate (integer, ROW, or COLUMN)',
+        argstr='%s',
+        position=2,
+        mandatory=True)
+    out_file = File(
+        desc='output cifti file',
+        argstr='%s',
+        position=3,
+        mandatory=True)
+
+class CiftiParcellateOutputSpec(TraitedSpec):
+    out_file = File(desc='output cifti file', exists=True)
+
+class CiftiParcellate(WBCommand):
+    _cmd = 'wb_command -cifti-parcellate'
+    input_spec = CiftiParcellateInputSpec
+    output_spec = CiftiParcellateOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
+        return outputs
+
+class CiftiCorrelationInputSpec(CommandLineInputSpec):
+    in_file = File(
+        desc='input cifti file',
+        argstr='%s',
+        position=0,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    out_file = File(
+        desc='output cifti file',
+        argstr='%s',
+        position=1,
+        mandatory=True)
+    fisher_z = traits.Bool(
+        desc='apply fish small z transform (ie, artanh) to correlation',
+        argstr='-fisher-z')
+
+class CiftiCorrelationOutputSpec(TraitedSpec):
+    out_file = File(desc='output cifti file', exist=True)
+
+class CiftiCorrelation(WBCommand):
+    _cmd = 'wb_command -cifti-correlation'
+    input_spec = CiftiCorrelationInputSpec
+    output_spec = CiftiCorrelationOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
+        return outputs
+
 def check_wb():
     ver = Info.version()
     if ver:
