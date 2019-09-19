@@ -241,14 +241,14 @@ class CiftiConvertFromNiftiInputSpec(CommandLineInputSpec):
         argstr='-reset-timepoints %f %f')
     unit = traits.Str(
         desc='use a unit other than time (default SECOND)',
-        requires=['reset_timpoints'],
+        requires=['reset_timepoints'],
         argstr='-unit %s')
     reset_scalars = traits.Bool(
         desc='reset mapping along rows to scalars, taking lenght from the nifti file',
         argstr='-reset-scalars')
 
 class CiftiConvertFromNiftiOutputSpec(TraitedSpec):
-    out_file = File(desc='output file', exist=True)
+    out_file = File(desc='output file', exists=True)
 
 class CiftiConvertFromNifti(WBCommand):
     _cmd = 'wb_command -cifti-convert -from-nifti'
