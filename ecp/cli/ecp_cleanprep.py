@@ -34,7 +34,7 @@ def run_cleanprep_wf(args):
     n_procs = args.n_procs
 
     spec = pd.read_csv(spec_file)
-    spec = spec[spec['tsnr'].notnull()]
+    spec = spec[spec['has_new_nifti'] & spec['has_cifti']]
 
     spec_participants = set(spec['subject'])
     extra_participants = set(participants).difference(spec_participants)
