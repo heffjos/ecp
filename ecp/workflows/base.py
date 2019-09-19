@@ -50,7 +50,7 @@ def init_cleanprep_wf(
     inputnode.ROIs = anat_files.subcortical
 
     ds_csf_mask = Node(DerivativesDataSink(
-        base_directory=out_dir, desc='csf',source_file=anat_name_template,
+        base_directory=out_dir, desc='csf', source_file=anat_name_template,
         space='mni', suffix='mask'), name='ds_csf_mask')
     ds_wm_mask = Node(DerivativesDataSink(
         base_directory=out_dir, desc='wm', source_file=anat_name_template,
