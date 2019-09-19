@@ -16,8 +16,8 @@ setup(
     packages=find_packages(),
     entry_points={
         'gui_scripts': [
-            'cleanprep=ecp.cli.cleanprep:main',
-            'clean=ecp.cli.clean:main',
+            'ecp_cleanprep=ecp.cli.ecp_cleanprep:main',
+            'ecp_clean=ecp.cli.ecp_clean:main',
         ],
     },
     install_requires=[
