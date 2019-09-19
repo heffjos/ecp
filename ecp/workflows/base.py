@@ -145,35 +145,86 @@ def init_cleanprep_wf(
 
     return cleanprep_wf
 
-def hcp_to_bids(hcp_name, subject, ses=None):
-    tokenized = hcp_name.split('_')
-    task, run = re.match('([a-zA-Z]+)(\d+)', tokenized[1]).groups()
-    task = task.lower()
-    run = '{:02d}'.format(int(run))
-    direction = tokenized[2].lower()
-
-    if ses:
-        template = 'sub-{subject}_ses-{ses}_task-{task}_dir-{direction}_run-{run}_bold.nii.gz'
-    else:
-        template = 'sub-{subject}_task-{task}_dir-{direction}_run-{run}_bold.nii.gz'
-
-    return template.format(
-        subject=subject, ses=ses, task=task, direction=direction, run=run)
-    
-    
-            
-
-            
-            
-    
-
-
-
-
-                             
-                     
-
+# def init_clean_wf(
+#     data_dir,
+#     cleanprep_dir,
+#     work_dir,
+#     out_dir,
+#     clean_name,
+#     subject,
+#     tasks,
+#     regressors,
+#     fd_censor=None,
+#     fd_censor_method=None,
+#     polort=None,
+#     passband=None,
+#     stopband=None,
+#     dt=None,
+#     parcellations=None,
+# ):
+#     class DerivativesDataSink(bids.DerivativesDataSink):
+#         out_path_base = os.path.join('clean', clean_name)
+# 
+#     anat_files = PostFreeSurferFiles(base_dir=data_dir,
+#                                      subject=subject).run().outputs
+# 
+#     clean_wf = Workflow(name=f'clean_{clean_name}_wf')
+#     cleanprep_wf.base_dir = os.path.join(work_dir, subject)
+# 
+#     for task in tasks:
+#         task_wf = Workflow(name=task + '_wf')
+# 
+#         task_cifti_files = HcpTaskCiftiFiles(
+#             mninonlinear=anat_files.mninonlinear,
+#             subject=subject, 
+#             task=task).run().outputs
+# 
+#         clean_prep_files = CleanPrepFiles(
+#             cleanprep_dir=cleanprep_dir,
+#             subject=subject,
+#             hcp_task=task).run().outputs
+# 
+#         get_cleaning = Node(
+#             CleaningRegressors(regressors_tsv=clean_prep_files.confounds_tsv,
+#                                regressors_to_keep=regressors[task]),
+#             name='get_cleaning')
+# 
+#         if fd_censor:
+#             get_cleaning.inputs.afni_censor = fd_censor
+# 
+#         clean = Node(afni.TProject())
+#         
+#         if fd_censor and fd_censor_mode:
+#             clean.inputs.cenmode = fd_censor_mode
+# 
+#         if polort:
+#             clean.inputs.polort = polort
+# 
+#         if passband:
+#             clean.inputs.bandpass = passband
+# 
+#         if stopband:
+#             clean.inputs.stopband = stopband
+# 
+#         if dt:
+#             clean.inputs.TR = dt
+# 
+#         cifti_convert_to_nifti = Node(CiftiConvertFromNifti(
+#             in_file=task_cifti_files.preproc, out_file='cleanbold.dtseries.nii'),
+#             name='cifti_convert_to_nifti')
+# 
+#         # add parcellations here
+# 
+#         # connect nodes
+#         ds_
 
         
-                                            
-                                    
+
+        
+            
+
+        
+                                      
+
+    
+    
