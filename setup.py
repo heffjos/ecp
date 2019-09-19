@@ -30,11 +30,11 @@ setup(
     ],
     package_data={
         '': ['LICENSE', 'README.md'],
-        'mcw_readers': ['data/FreeSurferCSFRegLut.txt',
-                        'data/FreeSurferWMRegLut.txt',
-                        'data/glasser_conte.dlabel.nii',
-                        'data/fsl_identity.txt',
-                        'data/itk_identity.txt',],
+        'ecp': ['data/FreeSurferCSFRegLut.txt',
+                'data/FreeSurferWMRegLut.txt',
+                'data/glasser_conte.dlabel.nii',
+                'data/fsl_identity.txt',
+                'data/itk_identity.txt',],
     },
     include_package_data=True,
 )
