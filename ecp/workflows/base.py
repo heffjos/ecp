@@ -8,7 +8,7 @@ from .. import utils
 from ..interfaces.paths import (
     PostFreeSurferFiles, HcpTaskVolumeFiles, HcpTaskCiftiFiles
 )
-from ..interfaces.confounds import GetHcpMovement, RegressorsTsvTo1D
+from ..interfaces.confounds import GetHcpMovement, CleaningRegressors
 from ..interfaces.workbench import CiftiConvertToNifti
 
 from .anat import init_hcp_segment_anat_wf
