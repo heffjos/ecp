@@ -1,3 +1,7 @@
+import os
+
+from .. import utils
+
 from os.path import join as opj
 
 from nipype.interfaces.base import (
@@ -169,3 +173,54 @@ class HcpTaskCiftiFiles(SimpleInterface):
         self._results['preproc'] = opj(self._results['task_dir'],
                                        self.inputs.task + '_Atlas.dtseries.nii')
         return runtime
+
+class CleanPrepFilesInputSpec(BaseInterfaceInputSpec):
+    cleanprep_dir = Directory(
+        desc='cleanprep directory',
+        mandatory=True,
+        exists=True)
+    subject = traits.Str(
+        desc='subject id',
+        mandatory=True)
+    hcp_task = traits.Str(
+        desc='hcp task name',
+        mandatory=True)
+
+class CleanPrepFilesOutputSpec(TraitedSpec):
+    subject_dir = Directory(desc='subject cleanprep directory', exists=True)
+    
+    confounds_json = File(desc='fmriprep json file for confounds', exists=True)
+    confounds_tsv = File(desc='fmriprep tsv file for confounds', exists=True)
+    fakenifti = File(desc='the fake nifti', exists=True)
+
+class CleanPrepFiles(SimpleInterface):
+    input_spec = CleanPrepFilesInputSpec
+    output_spec = CleanPrepFilesOutputSpec
+
+    def _run_interface(self, runtime):
+        source_file = utils.hcp_to_bids(self.inputs.hcp_task, self.inputs.subject)
+        subject_dir = opj(self.inputs.cleanprep_dir, 'sub-' + self.inputs.subject)
+        
+        self._results['subject_dir'] = subject_dir 
+
+        self._results['confounds_json'] = opj(subject_dir,
+            utils.generate_bids_name(source_file,
+                                     ext='json',
+                                     desc='confounds',
+                                     suffix='regressors'))
+        self._results['confounds_tsv'] = opj(subject_dir,
+            utils.generate_bids_name(source_file,
+                                     ext='tsv',
+                                     desc='confounds',
+                                     suffix='regressors'))
+        self._results['fakenifti'] = opj(subject_dir,
+            utils.generate_bids_name(source_file,
+                                     ext='nii.gz',
+                                     space='fsLR32k',
+                                     suffix='fakenifti'))
+
+        return runtime
+        
+    
+
+        
