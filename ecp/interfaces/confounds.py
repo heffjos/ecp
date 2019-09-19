@@ -72,8 +72,8 @@ class CleaningRegressorsOutputSpec(TraitedSpec):
 class CleaningRegressors(SimpleInterface):
     """Selects the cleaning regressors"""
 
-    input_spec = RegressorsTsvTo1DInputSpec
-    output_spec = RegressorsTsvTo1DOutputSpec
+    input_spec = CleaningRegressorsInputSpec
+    output_spec = CleaningRegressorsInputSpec
 
     def _run_interface(self, runtime):
         out_dir = runtime.cwd
