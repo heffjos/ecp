@@ -1,6 +1,8 @@
 import os
 import re
 
+import ..utils
+
 from nipype import Workflow, Node, IdentityInterface
 
 from ..interfaces.paths import (
@@ -66,7 +68,7 @@ def init_cleanprep_wf(
     ])
 
     for task, task_skipped_vols in zip(tasks, skipped_vols):
-        func_name_template = hcp_to_bids(task, subject)
+        func_name_template = utils.hcp_to_bids(task, subject)
         task_wf = Workflow(name=task + '_wf')
 
         input_node = Node(IdentityInterface(
