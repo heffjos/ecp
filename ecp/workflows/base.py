@@ -1,10 +1,10 @@
 import os
 import re
 
-import ..utils
 
 from nipype import Workflow, Node, IdentityInterface
 
+from .. import utils
 from ..interfaces.paths import (
     PostFreeSurferFiles, HcpTaskVolumeFiles, HcpTaskCiftiFiles
 )
