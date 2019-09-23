@@ -48,10 +48,11 @@ class GetHcpMovement(SimpleInterface):
         param[:, 3:] = param[:, 3:] * 2 * np.pi / 360
 
         out_dir = runtime.cwd
-        np.savetxt(os.path.join(out_dir, 'movement.tsv'), param, fmt='%0.6f',
+        self._results['movement'] = os.path.join(out_dir, 'movement.tsv')
+
+        np.savetxt(self._results['movement'], param, fmt='%0.6f',
                    delimiter='\t')
 
-        self._results['movement'] = os.path.join(out_dir, 'movement.tsv')
 
         return runtime
 
