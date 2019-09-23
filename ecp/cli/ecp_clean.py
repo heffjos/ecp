@@ -324,8 +324,10 @@ def clean_task(participant, task, info, args, out_dir):
         tproject.inputs.censortr = out_censor
         tproject.inputs.cenmode = args.fd_censor_method
 
-    tproject.inputs.ort = out_1D
     tproject.inputs.polort = args.polort
+
+    if len(info['to_keep']) != 0):
+        tproject.inputs.org = out_1D
     
     if args.passband:
         tproject.inputs.bandpass = tuple(args.passband)
