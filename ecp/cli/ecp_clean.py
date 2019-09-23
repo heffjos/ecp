@@ -159,7 +159,7 @@ def run_clean_setup(args):
         raise Exception(f'Out directory does not exist: {out_dir}')
 
     spec = pd.read_csv(spec_file)
-    spec = spec[useable == 1]
+    spec = spec[spec['useable'] == 1]
 
     spec_participants = set(spec['subject'])
     extra_participants = set(participants).difference(spec_participants)
