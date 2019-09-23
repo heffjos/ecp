@@ -175,9 +175,11 @@ def run_clean_setup(args):
         raise Exception('Maximum percent variace allowed for tcompcor is 50'
                         'Your input: {}'.format(args.pvar_tcompcor))
 
-    common_regressors = args.regressors
-    for grouped_regressors in args.grouped_regressors:
-        common_regressors.extend(alias_regressors[grouped_regressors])
+    common_regressors = args.regressors if args.regressors else []
+
+    if args.grouped_regressors:
+        for grouped_regressors in args.grouped_regressors:
+            common_regressors.extend(alias_regressors[grouped_regressors])
 
     setups = {}
     for participant in participants:
