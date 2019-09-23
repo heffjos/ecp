@@ -341,6 +341,7 @@ def clean_task(participant, task, info, args, out_dir):
     if args.n_procs:
         tproject.inputs.num_threads = args.n_procs
 
+    tproject.inputs.args = '-verb'
     tproject_run = tproject.run()
     log = opj(log_dir, utils.generate_bold_name(suffix='cleanfakenift',
                                                 ext='.log',
