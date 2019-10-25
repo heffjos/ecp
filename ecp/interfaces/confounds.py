@@ -12,8 +12,10 @@ class GetHcpMovementInputSpec(BaseInterfaceInputSpec):
     hcp_movement = File(desc='HCP movement regressors', 
                         exists=True,
                         mandatory=True)
-    skipped_vols = traits.Int(desc='skipped volumes',
-                              usedefautl=True)
+    skip_begin = traits.Int(desc='skip volumes in the beginning',
+                               usedefault=True)
+    skip_end = traits.Int(desc='skip volumes at the end',
+                             usedefault=True)
 
 
 class GetHcpMovementOutputSpec(TraitedSpec):
@@ -44,7 +46,11 @@ class GetHcpMovement(SimpleInterface):
         # rotations are next 3
 
         data = np.loadtxt(self.inputs.hcp_movement)
-        param = data[self.inputs.skipped_vols:, 0:6]
+
+        begin = self.inputs.skip_begin
+        end = data.shape[1] - self.inputs.skip_end
+
+        param = data[begin:end, 0:6]
         param[:, 3:] = param[:, 3:] * 2 * np.pi / 360
 
         out_dir = runtime.cwd

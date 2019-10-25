@@ -50,10 +50,11 @@ def run_cleanprep_wf(args):
 
         participant_info = spec[spec['subject'] == participant]
         tasks = list(participant_info['task'])
-        skipped_vols = list(participant_info['skipped_vols'])
+        skip_begin = list(participant_info['skip_begin'])
+        skip_end = list(participant_info['skip_end'])
 
         wfs.append(init_cleanprep_wf(
-            data_dir, work_dir, out_dir, participant, tasks, skipped_vols))
+            data_dir, work_dir, out_dir, participant, tasks, skip_begin, skip_end))
 
     for wf in wfs:
         wf.run(plugin='MultiProc', plugin_args={'n_procs' : n_procs})
