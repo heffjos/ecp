@@ -57,7 +57,9 @@ def run_cleanprep_wf(args):
             data_dir, work_dir, out_dir, participant, tasks, skip_begin, skip_end))
 
     for wf in wfs:
-        wf.run()
+        wf.config['execution']['job_finished_timeout'] = 65
+        wf.run(plugin='MultiProc', plugin_args={'n_procs' : n_procs,
+                                                'maxtasksperchild': 1})
 
     return 0
 
