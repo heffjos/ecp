@@ -48,7 +48,7 @@ class GetHcpMovement(SimpleInterface):
         data = np.loadtxt(self.inputs.hcp_movement)
 
         begin = self.inputs.skip_begin
-        end = data.shape[1] - self.inputs.skip_end
+        end = data.shape[0] - self.inputs.skip_end
 
         param = data[begin:end, 0:6]
         param[:, 3:] = param[:, 3:] * 2 * np.pi / 360
