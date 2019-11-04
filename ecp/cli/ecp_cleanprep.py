@@ -57,7 +57,7 @@ def run_cleanprep_wf(args):
             data_dir, work_dir, out_dir, participant, tasks, skip_begin, skip_end))
 
     for wf in wfs:
-        wf.run(plugin='MultiProc', plugin_args={'n_procs' : n_procs})
+        wf.run()
 
     return 0
 
