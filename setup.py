@@ -24,7 +24,7 @@ setup(
         'numpy',
         'pandas',
         'importlib_resources',
-        'fmriprep',
+        'fmriprep==20.0.5',
         'nipype',
         'nibabel',
     ],
