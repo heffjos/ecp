@@ -150,7 +150,7 @@ def init_bold_confs_wf(
                     name="fdisp", mem_gb=mem_gb)
 
     # a/t-Compcor
-    mrg_lbl_cc = pe.Node(niu.Merge(1), name='merge_rois_cc', run_without_submitting=True)
+    mrg_lbl_cc = pe.Node(niu.Merge(3), name='merge_rois_cc', run_without_submitting=True)
 
     tcompcor = pe.Node(
         TCompCor(components_file='tcompcor.tsv', header_prefix='t_comp_cor_', pre_filter='cosine',
