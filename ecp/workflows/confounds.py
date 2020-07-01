@@ -276,6 +276,8 @@ def init_bold_confs_wf(
         (inputnode, acompcor, [('skip_vols', 'ignore_initial_volumes')]),
         (acc_roi, acc_msk, [('out_file', 'roi_file')]),
         (acc_msk, mrg_lbl_cc, [('out', 'in1')]),
+        (inputnode, mrg_lbl_cc, [('csf_mask', 'in2')]),
+        (inputnode, mrg_lbl_cc, [('wm_mask', 'in3')]),
         (mrg_lbl_cc, acompcor, [('out', 'mask_files')]),
 
         # Global signals extraction (constrained by anatomy)
