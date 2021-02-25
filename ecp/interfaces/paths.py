@@ -188,10 +188,9 @@ class CleanPrepFilesInputSpec(BaseInterfaceInputSpec):
 
 class CleanPrepFilesOutputSpec(TraitedSpec):
     subject_dir = Directory(desc='subject cleanprep directory', exists=True)
-    
     confounds_json = File(desc='fmriprep json file for confounds', exists=True)
     confounds_tsv = File(desc='fmriprep tsv file for confounds', exists=True)
-    fakenifti = File(desc='the fake nifti', exists=True)
+    cifti = File(desc='the cifti file', exists=True)
 
 class CleanPrepFiles(SimpleInterface):
     input_spec = CleanPrepFilesInputSpec
@@ -200,24 +199,25 @@ class CleanPrepFiles(SimpleInterface):
     def _run_interface(self, runtime):
         source_file = utils.hcp_to_bids(self.inputs.hcp_task, self.inputs.subject)
         subject_dir = opj(self.inputs.cleanprep_dir, 'sub-' + self.inputs.subject)
+        func_dir = opj(subject_dir, 'func')
         
         self._results['subject_dir'] = subject_dir 
 
-        self._results['confounds_json'] = opj(subject_dir,
+        self._results['confounds_json'] = opj(func_dir,
             utils.generate_bids_name(source_file,
                                      ext='json',
                                      desc='confounds',
                                      suffix='regressors'))
-        self._results['confounds_tsv'] = opj(subject_dir,
+        self._results['confounds_tsv'] = opj(func_dir,
             utils.generate_bids_name(source_file,
                                      ext='tsv',
                                      desc='confounds',
                                      suffix='regressors'))
-        self._results['fakenifti'] = opj(subject_dir,
+        self._results['cifti'] = opj(func_dir,
             utils.generate_bids_name(source_file,
-                                     ext='nii.gz',
+                                     ext='dtseries.nii',
                                      space='fsLR32k',
-                                     suffix='fakenifti'))
+                                     suffix='bold'))
 
         return runtime
         
