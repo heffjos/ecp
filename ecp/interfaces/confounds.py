@@ -63,18 +63,34 @@ class GetHcpMovement(SimpleInterface):
         return runtime
 
 class CleaningRegressorsInputSpec(BaseInterfaceInputSpec):
-    regressors_tsv = File(desc='fmriprep regressors tsv file', 
-                          exists=True, 
-                          mandatory=True)
-    regressors_to_keep = traits.List(traits.Str(), 
-                                     mandatory=True,
-                                     desc='subset list of cleaning regressors')
-    afni_censor = traits.Float(desc='framewise displacement threshold')
+    regressors_tsv = File(
+        desc='fmriprep regressors tsv file', 
+        exists=True, 
+        mandatory=True)
+    regressors_to_keep = traits.List(
+        traits.Str(), 
+        mandatory=True,
+        desc='subset list of cleaning regressors')
+    non_steady_state = traits.Bool(
+        desc='censor non steady state outliers',
+        usdefault=True)
+    fd_thres = traits.Float(
+        desc='censor volumes above FD value', 
+        usedefault=True)
+    dvars_thres = traits.Float(
+        desc='censor volumes above DVARS value',
+        usedfault=True)
 
 class CleaningRegressorsOutputSpec(TraitedSpec):
-    regressors_tsv = File(desc='cleaning regressors', exists=True)
-    regressors_1D = File(desc='afni formatted cleanring regressors', exists=True)
-    censor_1D = File(desc='afni censor file derived from framewise displacement')
+    regressors_tsv = File(
+        desc='cleaning regressors', 
+        exists=True)
+    regressors_1D = File(
+        desc='afni formatted cleaning regressors', 
+        exists=True)
+    censor_1D = File(
+        desc='afni censor file',
+        exists=True)
 
 class CleaningRegressors(SimpleInterface):
     """Selects the cleaning regressors"""
@@ -94,6 +110,7 @@ class CleaningRegressors(SimpleInterface):
 
         out_tsv = opj(out_dir, regressors_fname)
         out_1D = opj(out_dir, no_ext_regressors_fname + '.1D')
+        out_censor = opj(out_dir, no_suffx + '_censor.1D')
 
         keep_data.to_csv(out_tsv, sep='\t', na='n/a', index=False)
         keep_data.to_csv(out_1D, sep=' ', na='n/a', header=False, index=False) 
@@ -101,13 +118,24 @@ class CleaningRegressors(SimpleInterface):
         self._results['regressors_tsv'] = out_tsv
         self._results['regressors_1D'] = regressors_1D
 
-        if isdefined(self.inputs.afni_censor):
-            data['afni_censor'] = data['framewise_displacement'] < self.inputs.afni_censor
-            out_censor = opj(out_dir, no_suffx + '_censor.1D')
-            data[['afni_censor']].to_csv(out_censor, sep=' ', na='n/a',
-                                         header=False, index=False)
-            self._results['censor_1d'] = out_censor
-        else:
-            self._results['censor_1d'] = ''
+        nvols = keep_data.shape[0]
+        censor = np.ones((nvols, 1))
+
+        if self.inputs.non_steady_state:
+            non_steady_cols = [x for x in data.columns
+                               if x.startswith('non_steady_state')]
+            idx = np.asarray(data[non_steady_cols]).any(axis=1)
+            censor[idx] = 0
+
+        if self.inputs.fd_thres > 0:
+            idx = np.asarray(data.framewise_displacement) > self.inputs.fd_thres
+            censor[idx] = 0
+
+        if self.inputs.dvars_thres > 0:
+            idx = np.asarray(data.dvars) > self.inputs.dvars_thres
+            censor[idx] = 0
+
+        np.savetxt(out_censor, censor, fmt='%d')
+        self._results['censor_1d'] = out_censor
 
         return runtime
