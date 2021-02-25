@@ -1,11 +1,14 @@
 import os
 import sys
+import subprocess
 
 import pandas as pd
 
+from shlex import split
+from pathlib import Path
 from argparse import ArgumentParser
-from multiprocessing import cpu_count
 
+from nipype import Workflow
 from ecp.workflows.base import init_cleanprep_wf
 
 def get_parser():
@@ -16,48 +19,44 @@ def get_parser():
     parser.add_argument('work_dir', action='store', help='the working directory')
     parser.add_argument('out_dir', action='store', help='the output directory')
     parser.add_argument('spec_file', action='store', help='csv spec file')
-    parser.add_argument('--participants', action='store', nargs='+',
-                        help='participants to be prepped')
-    parser.add_argument('--n-procs', action='store', type=int, default=None,
+    parser.add_argument('participant', action='store', help='prep participant')
+    parser.add_argument('--n-procs', action='store', type=int, default=8,
                         help='number of processors to use')
 
     return parser
 
 def run_cleanprep_wf(args):
 
-    data_dir = args.data_dir
-    work_dir = args.work_dir
-    out_dir = args.out_dir
-    spec_file = args.spec_file
+    data_dir = Path(args.data_dir).resolve()
+    work_dir = Path(args.work_dir).resolve()
+    out_dir = Path(args.out_dir).resolve()
+    spec_file = Path(args.spec_file).resolve().as_posix()
 
-    participants = args.participants
+    participant = args.participant
     n_procs = args.n_procs
 
-    spec = pd.read_csv(spec_file)
-    spec = spec[spec['has_new_nifti'] & spec['has_cifti'] & spec['useable']]
+    spec = pd.read_csv(spec_file, sep='\t')
+    spec = spec.loc[spec.usable_data, :]
 
-    spec_participants = set(spec['subject'])
-    extra_participants = set(participants).difference(spec_participants)
-    if extra_participants:
-        raise Exception('Input participants are not in spec_file: '
-                        '{}'.format('\n'.join(extra_participants)))
+    if participant not in set(spec.subjects):
+        raise Exception(f'Subject not found in spec file: {participant}')
 
-    n_procs = args.n_procs if args.n_procs else cpu_count()
-
-    wfs = []
-    for participant in participants:
-        print(f'Building workflow for participant: {participant}')
-
-        participant_info = spec[spec['subject'] == participant]
-        tasks = list(participant_info['task'])
-        skip_begin = list(participant_info['skip_begin'])
-        skip_end = list(participant_info['skip_end'])
-
-        wfs.append(init_cleanprep_wf(
-            data_dir, work_dir, out_dir, participant, tasks, skip_begin, skip_end))
-
-    for wf in wfs:
-        wf.run()
+    subject_work_dir = work_dir.joinpath(f'{participant}_cleanprep')
+    participant_info = spec[spec.subjects == participant]
+    tasks = list(participant_info['func'])
+    skip_begin = list(participant_info['movement_skip_begin'])
+    skip_end = list(participant_info['movement_skip_end'])
+    
+    cleanprep_wf = init_cleanprep_wf(
+        data_dir.as_posix(), 
+        subject_work_dir.as_posix(), 
+        out_dir.as_posix(), 
+        participant, 
+        tasks, 
+        skip_begin, 
+        skip_end)
+    
+    cleanprep_wf.run(plugin='MultiProc', plugin_args={'n_procs': n_procs})
 
     return 0
 
@@ -70,4 +69,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-        
