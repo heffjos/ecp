@@ -1,7 +1,15 @@
 import os
 
-from nipype.interfaces.base import (CommandLine, traits, CommandLineInputSpec, isdefined,
-                                    File, TraitedSpec, PackageInfo)
+from nipype.interfaces.base import (
+    CommandLine, 
+    traits, 
+    CommandLineInputSpec, 
+    isdefined,
+    File, 
+    TraitedSpec, 
+    PackageInfo,
+    InputMultiPath
+)
 from nipype.utils.filemanip import fname_presuffix
 
 class Info(PackageInfo):
@@ -323,6 +331,34 @@ class CiftiCorrelation(WBCommand):
     _cmd = 'wb_command -cifti-correlation'
     input_spec = CiftiCorrelationInputSpec
     output_spec = CiftiCorrelationOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
+        return outputs
+
+class CiftiMergeInputSpec(CommandLineInputSpec):
+    in_files = InputMultiPath(
+        File(exist=True),
+        desc='input cifti files',
+        argstr='-cifti %s',
+        copyfile=False,
+        sep=' -cifti ',
+        position=1,
+        mandatory=True)
+    out_file = File(
+        desc='output cifti file',
+        argstr='%s',
+        position=0,
+        mandatory=True)
+
+class CiftiMergeOutputSpec(TraitedSpec):
+    out_file = File(desc='output cifti file', exist=True)
+
+class CiftiMerge(WBCommand):
+    _cmd = 'wb_command -cifti-merge'
+    input_spec = CiftiMergeInputSpec
+    output_spec = CiftiMergeOutputSpec
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
