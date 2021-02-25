@@ -78,7 +78,6 @@ def hcp_to_bids(hcp_name, subject, ses=None):
     tokenized = hcp_name.split('_')
     task, run = re.match('([a-zA-Z]+)(\d+)', tokenized[1]).groups()
     task = task.lower()
-    run = '{:02d}'.format(int(run))
     direction = tokenized[2].lower()
 
     if ses:
