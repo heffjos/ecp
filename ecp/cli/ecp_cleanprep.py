@@ -22,6 +22,8 @@ def get_parser():
     parser.add_argument('participant', action='store', help='prep participant')
     parser.add_argument('--n-procs', action='store', type=int, default=8,
                         help='number of processors to use')
+    parser.add_argument('--skip-vols', action='store', type=int,
+                        help='non steady state outliers')
 
     return parser
 
@@ -34,6 +36,7 @@ def run_cleanprep_wf(args):
 
     participant = args.participant
     n_procs = args.n_procs
+    skip_vols = args.skip_vols
 
     spec = pd.read_csv(spec_file, sep='\t')
     spec = spec.loc[spec.usable_data, :]
@@ -54,7 +57,8 @@ def run_cleanprep_wf(args):
         participant, 
         tasks, 
         skip_begin, 
-        skip_end)
+        skip_end,
+        skip_vols)
     
     cleanprep_wf.run(plugin='MultiProc', plugin_args={'n_procs': n_procs})
 

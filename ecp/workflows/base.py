@@ -33,6 +33,44 @@ def init_cleanprep_wf(
     skip_vols=None,
     name='cleanprep_wf',
 ):
+    """
+    Creates cleanprep workflow.
+
+    Parameters
+    ----------
+
+    data_dir: str
+        data directory holding subject folders
+    work_dir: str
+        working directory
+    out_dir: str
+        out directory. Final out directory is out_dir/cleanprep
+    subject: str
+        subject name; data_dir expected to have a subject directory
+    tasks: list (str)
+        the task names in HCP format
+    skip_begin: list (int)
+        this option is intended for pre-upgrade scans. It removes this many 
+        volumes from the beginning of the HCP movement regressors file, because
+        this number of volumes were removed from the scan after preprocessing
+        (nifti and cifti match) but not the movement regresssors file.
+    skip_end: list (int)
+        this option is intended for pre-upgrade scans. It removes this many 
+        volumes from the end of the HCP movement regressors file, because
+        this number of volumes were removed from the scan after preprocessing
+        (nifti and cifti match) but not the movement regresssors file.
+    skip_vols: int
+        count these beginning volumes as non steady state instead of relying
+        on the algorithm
+
+    Outputs
+    -------
+
+    cleanprep_wf: Workflow
+        the cleanprep workflow
+
+    
+    """
 
     DerivativesDataSink = bids.DerivativesDataSink
     DerivativesDataSink.out_path_base = 'cleanprep'
