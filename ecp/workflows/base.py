@@ -2,6 +2,8 @@ import os
 
 from niworkflows.interfaces import bids
 from nipype import Workflow, Node, IdentityInterface, MapNode
+
+from nipype.interfaces.nipy.preprocess import Trim
 from nipype.algorithms.confounds import NonSteadyStateDetector
 
 from .. import utils
@@ -223,6 +225,7 @@ def init_clean_wf(
     save_clean_dtseries=False,
     save_clean_ptseries=False,
     save_clean_pconn=False,
+    save_clean_covariance=False,
     polort=-1,
     passband=None,
     stopband=None,
@@ -241,16 +244,19 @@ def init_clean_wf(
                                    'sub-001_task-rest_run-2_censor.1D'],
                         'ort': ['sub-001_task-rest_run-1_ort.1D',
                                 'sub-001_task-rest_run-2_ort.1D'],
-                        'dt': [0.8, 0.8],},
+                        'dt': [0.8, 0.8],
+                        'trim': [2, 3]},
             parcellation = 'glasser_parcellation.dlabel.nii',
             out_dir = '/path/to/out_dir',
             out_path_base = 'some_folder_name',
             space = 'fsLR32k',
             parcellation_space = 'glasser',
+            source_file = 'sub-EC1008_task-rest_bold.nii.gz',
             work_dir = '/path/to/work_dir',
             save_clena_dtseries = False,
             save_clean_ptseries = False,
             save_clean_pconn = False,
+            save_clean_covariance = False,
             polort=2,
             passband=[0.01, 0.1],
             stopband=None,
@@ -267,6 +273,10 @@ def init_clean_wf(
             censor is a list of afni censor 1D files or None
             ort is a list of ort 1D files or None
             dt is a list of floats for the repetition times
+            trim removes these number of volumes from the begining before any
+                preprocessing. Number of volumes after trimming must match
+                censor and ort volumes. This number is zero-based. Use 0
+                if you do not want to trim any beginning frames.
     parcellation : str
         path to cifti parcellation
     out_dir : str
@@ -287,6 +297,8 @@ def init_clean_wf(
         save the clean ptseries for each in cifti
     save_clean_pconn : bool
         save the pconn for each in cifti
+    save_clean_covariance : bool
+        save the covariance for each in cifti
     polort : int
         remove polynomials up to and including degree polynomial
     passband : list
@@ -315,6 +327,7 @@ def init_clean_wf(
     censor = in_files['censor']
     ort = in_files['ort']
     dt = in_files['dt']
+    trim = in_files['trim']
 
     DerivativesDataSink = bids.DerivativesDataSink
     DerivativesDataSink.out_path_base = out_path_base
@@ -334,12 +347,16 @@ def init_clean_wf(
         tproject_iterfields.append('ort')
 
     # start workflow now
-    workflow = Workflow(name=name, base_dir=work_dir)
+    clean_wf = Workflow(name=name, base_dir=work_dir)
 
     cifti_to_nifti = MapNode(CiftiConvertToNifti(
         out_file='fakenifti.nii.gz'),
         name='cifti_to_nifti', iterfield=['in_file'])
     cifti_to_nifti.inputs.in_file = cifti
+
+    trim_begin = MapNode(Trim(),
+        name='trim_begin', iterfield=['in_file', 'begin_index'])
+    trim_begin.inputs.begin_index = trim
 
     tproject = MapNode(TProject(
         out_file='clean.nii.gz',
@@ -373,6 +390,11 @@ def init_clean_wf(
         fisher_z=True),
         name='task_zvals', iterfield=['in_file'])
 
+    task_cov = MapNode(CiftiCorrelation(
+        out_file='task_cov.pconn.nii',
+        covariance=True),
+        name='task_cov', iterfield=['in_file'])
+
     task_merge = Node(CiftiMerge(
         out_file='merge.ptseries.nii'),
         name='task_merge')
@@ -385,6 +407,11 @@ def init_clean_wf(
         out_file='merge_zvals.pconn.nii',
         fisher_z=True),
         name='merge_zvals')
+
+    merge_cov = Node(CiftiCorrelation(
+        out_file='merge_cov.pconn.nii',
+        covariance=True),
+        name='merge_cov')
 
     # derivatives
     ds_clean_dtseries = MapNode(DerivativesDataSink(
@@ -425,6 +452,15 @@ def init_clean_wf(
         run_without_submitting=True)
     ds_task_rvals.inputs.source_file = source_files
 
+    ds_task_cov = MapNode(DerivativesDataSink(
+        base_directory=out_dir,
+        space=parcellation_space,
+        suffix='cov.pconn'),
+        iterfield=['in_file', 'source_file'],
+        name='ds_task_cov', 
+        run_without_submitting=True)
+    ds_task_cov.inputs.source_file = source_files
+
     ds_subject_zvals = Node(DerivativesDataSink(
         base_directory=out_dir,
         desc='concatenated',
@@ -441,10 +477,18 @@ def init_clean_wf(
         source_file=source_file),
         name='ds_subject_rvals', run_without_submitting=True)
 
+    ds_subject_cov = Node(DerivativesDataSink(
+        base_directory=out_dir,
+        desc='concatenated',
+        space=parcellation_space,
+        suffix='cov.pconn',
+        source_file=source_file),
+        name='ds_subject_cov', run_without_submitting=True)
+
     ds_ort = MapNode(DerivativesDataSink(
         base_directory=out_dir,
         desc='confounds',
-        suffix='regressors'),
+        suffix='tproject'),
         iterfield=['in_file', 'source_file'],
         name='ds_ort',
         run_without_submittting=True)
@@ -453,7 +497,7 @@ def init_clean_wf(
     ds_sval = MapNode(DerivativesDataSink(
         base_directory=out_dir,
         desc='sval',
-        suffix='regressors'),
+        suffix='tproject'),
         iterfield=['in_file', 'source_file'],
         name='ds_sval',
         run_without_submitting=True)
@@ -462,57 +506,73 @@ def init_clean_wf(
     ds_psinv = MapNode(DerivativesDataSink(
         base_directory=out_dir,
         desc='psinv',
-        suffix='regressors'),
+        suffix='tproject'),
         iterfield=['in_file', 'source_file'],
         name='ds_psinv',
         run_without_submitting=True)
+    ds_psinv.inputs.source_file = source_files
 
     if run_tproject:
-        workflow.connect([
-            (cifti_to_nifti, tproject, [('out_file', 'in_file')]),
+
+        clean_wf.connect([
+            (cifti_to_nifti, trim_begin, [('out_file', 'in_file')]),
+            (trim_begin, tproject, [('out_file', 'in_file')]),
             (tproject, nifti_to_cifti, [('out_file', 'in_file')]),
             (nifti_to_cifti, cifti_parcellate, [('out_file', 'in_file')]),
         ])
 
-        if save_clean_dtseries:
-            workflow.connect([
-                (nifti_to_cifti, ds_clean_dtseries, [('out_file', 'in_file')]),
-            ])
-
         if write_verbose:
-            workflow.connect([
+            clean_wf.connect([
                 (tproject, ds_ort, [('matrix', 'in_file')]),
                 (tproject, ds_sval, [('singular_values', 'in_file')]),
                 (tproject, ds_psinv, [('pseudo_inv', 'in_file')]),
             ])
     else:
-        cifti_parcellate.inputs.in_file = cifti
-        if save_clean_dtseries:
-            ds_clean_dtseries.inputs.in_file = cifti
 
-    workflow.connect([
-        (cifti_parcellate, task_rvals, [('out_file', 'in_file')]),
-        (cifti_parcellate, task_zvals, [('out_file', 'in_file')]),
+        clean_wf.connect([
+            (cifti_to_nifti, trim_begin, [('out_file', 'in_file')]),
+            (trim_begin, nifti_to_cifti, [('out_file', 'in_file')]),
+            (nifti_to_cifti, cifti_parcellate, [('out_file', 'in_file')]),
+        ])
+        
+    clean_wf.connect([
         (cifti_parcellate, task_merge, [('out_file', 'in_files')]),
         (task_merge, merge_rvals, [('out_file', 'in_file')]),
         (task_merge, merge_zvals, [('out_file', 'in_file')]),
+        (task_merge, merge_cov, [('out_file', 'in_file')]),
         # derivatives
         (merge_rvals, ds_subject_rvals, [('out_file', 'in_file')]),
         (merge_zvals, ds_subject_zvals, [('out_file', 'in_file')]),
+        (merge_cov, ds_subject_cov, [('out_file', 'in_file')]),
     ])
 
+    if save_clean_dtseries:
+        clean_wf.connect([
+            (nifti_to_cifti, ds_clean_dtseries, [('out_file', 'in_file')]),
+        ])
+
     if save_clean_ptseries:
-        workflow.connect([
+        clean_wf.connect([
             (cifti_parcellate, ds_task_ptseries, [('out_file', 'in_file')]),
         ])
 
     if save_clean_pconn:
-        workflow.connect([
+        clean_wf.connect([
+            (cifti_parcellate, task_rvals, [('out_file', 'in_file')]),
+            (cifti_parcellate, task_zvals, [('out_file', 'in_file')]),
+            # derivatives
             (task_rvals, ds_task_rvals, [('out_file', 'in_file')]),
             (task_zvals, ds_task_zvals, [('out_file', 'in_file')]),
         ])
 
-    return workflow
+    if save_clean_covariance:
+        clean_wf.connect([
+            (cifti_parcellate, task_cov, [('out_file', 'in_file')]),
+            # derivatives
+            (task_cov, ds_task_cov, [('out_file', 'in_file')]),
+        ])
+
+    return clean_wf
 
 def init_clean_cifti(
     out_dir,
