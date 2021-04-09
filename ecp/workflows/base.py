@@ -166,10 +166,6 @@ def init_cleanprep_wf(
             suffix='boldmask'),
             name='ds_boldmask')
 
-        cifti_convert_to_nifti = Node(CiftiConvertToNifti(
-            out_file='fakenifti.nii.gz'), 
-            name='cifti_convert_to_nifti') 
-
         ds_confounds = Node(DerivativesDataSink(
             base_directory=out_dir, 
             desc='confounds', 
@@ -184,7 +180,6 @@ def init_cleanprep_wf(
             suffix='bold.dtseries'), name='ds_fakenifti')
 
         task_wf.connect([
-            (input_node, cifti_convert_to_nifti, [('cifti', 'in_file')]),
             (input_node, bold_confs_wf, [('csf_mask', 'inputnode.csf_mask'),
                                          ('wm_mask', 'inputnode.wm_mask'),
                                          ('cortical_gm_mask', 'inputnode.cortical_gm_mask')]),
