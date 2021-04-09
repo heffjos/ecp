@@ -321,8 +321,13 @@ class CiftiCorrelationInputSpec(CommandLineInputSpec):
         position=1,
         mandatory=True)
     fisher_z = traits.Bool(
-        desc='apply fish small z transform (ie, artanh) to correlation',
-        argstr='-fisher-z')
+        desc='apply fisher small z transform (ie, artanh) to correlation',
+        argstr='-fisher-z',
+        xor=['covariance'])
+    covariance = traits.Bool(
+        desc='compute covariance instead of correlation',
+        argstr='-covariance',
+        xor=['fisher_z'])
 
 class CiftiCorrelationOutputSpec(TraitedSpec):
     out_file = File(desc='output cifti file', exist=True)
@@ -336,6 +341,21 @@ class CiftiCorrelation(WBCommand):
         outputs = self.output_spec().get()
         outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
+
+class CiftiCovarianceInputSpec(CommandLineInputSpec):
+    in_file = File(
+        desc='input cifti file',
+        argstr='%s',
+        position=0,
+        mandatory=True,
+        exists=True,
+        copyfile=False)
+    out_file = File(
+        desc='output cifti file',
+        argstr='%s',
+        position=1,
+        mandatory=True)
+    
 
 class CiftiMergeInputSpec(CommandLineInputSpec):
     in_files = InputMultiPath(
