@@ -139,3 +139,40 @@ class CleaningRegressors(SimpleInterface):
         self._results['censor_1d'] = out_censor
 
         return runtime
+
+class TrimMovementInputSpec(BaseInterfaceInputSpec):
+
+    movpar_file = File(
+        desc='tsv file',
+        exists=True,
+        mandatory=True)
+
+    skip_vols = traits.Int(
+        desc='trim these volumes from the beginning',
+        usedefault=True)
+
+class TrimMovementOutputSpec(TraitedSpec):
+
+    out_file = File(
+        desc='trimmed tsv file',
+        exists=True)
+
+class TrimMovement(SimpleInterface):
+    """Trims the first rows from a movement parameter file"""
+
+    input_spec = TrimMovementInputSpec
+    output_spec = TrimMovementOutputSpec
+
+    def _run_interface(self, runtime):
+    
+        data = np.loadtxt(self.inputs.movpar_file)
+        data = data[self.inputs.skip_vols:]
+
+        out_file = os.path.join(runtime.cwd, 'out_file.par')
+        np.savetxt(out_file, data, fmt='%0.6f', delimiter='\t')
+        self._results['out_file'] = out_file
+
+        return runtime
+        
+    
+        
