@@ -72,7 +72,7 @@ def splitext(fname):
     stem = Path(basename.rstrip('.gz')).stem
     return stem, basename[len(stem):]
 
-def hcp_to_bids(hcp_name, subject, ses=None):
+def hcp_to_bids(hcp_name, subject, ses=None, suffix='bold'):
     """Convert hcp name to bids name"""
 
     tokenized = hcp_name.split('_')
@@ -81,12 +81,12 @@ def hcp_to_bids(hcp_name, subject, ses=None):
     direction = tokenized[2].lower()
 
     if ses:
-        template = 'sub-{subject}_ses-{ses}_task-{task}_dir-{direction}_run-{run}_bold.nii.gz'
+        template = f'sub-{subject}_ses-{ses}_task-{task}_dir-{direction}_run-{run}_{suffix}.nii.gz'
     else:
-        template = 'sub-{subject}_task-{task}_dir-{direction}_run-{run}_bold.nii.gz'
+        template = f'sub-{subject}_task-{task}_dir-{direction}_run-{run}_{suffix}.nii.gz'
 
-    return template.format(
-        subject=subject, ses=ses, task=task, direction=direction, run=run)
+    return template
+
 
 def makedir(path):
     """make directory and not error out if it exists already"""
