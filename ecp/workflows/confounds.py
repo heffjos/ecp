@@ -24,11 +24,15 @@ from fmriprep.interfaces import GatherConfounds
 DEFAULT_MEMORY_MIN_GB = 0.01
 
 def init_bold_confs_wf(
+    out_dir,
+    out_path_base,
+    source_file,
     mem_gb,
-    metadata,
     regressors_all_comps,
     regressors_dvars_th,
     regressors_fd_th,
+    dt=None,
+    work_dir=None,
     name="bold_confs_wf",
 ):
     """
@@ -64,10 +68,10 @@ def init_bold_confs_wf(
         from fmriprep.workflows.bold.confounds import init_bold_confs_wf
         wf = init_bold_confs_wf(
             mem_gb=1,
-            metadata={},
             regressors_all_comps=False,
             regressors_dvars_th=1.5,
             regressors_fd_th=0.5,
+            dt=2.0,
         )
 
     **Parameters**
@@ -76,10 +80,6 @@ def init_bold_confs_wf(
             Size of BOLD file in GB - please note that this size
             should be calculated after resamplings that may extend
             the FoV
-        metadata : dict
-            BIDS metadata for BOLD file
-        name : str
-            Name of workflow (default: ``bold_confs_wf``)
         regressors_all_comps: bool
             Indicates whether CompCor decompositions should return all
             components instead of the minimal number of components necessary
@@ -88,6 +88,10 @@ def init_bold_confs_wf(
             Criterion for flagging DVARS outliers
         regressors_fd_th
             Criterion for flagging framewise displacement outliers
+        dt: float
+            repetition time
+        name : str
+            Name of workflow (default: ``bold_confs_wf``)
 
 
     **Inputs**
@@ -117,11 +121,16 @@ def init_bold_confs_wf(
             Confounds metadata dictionary.
 
     """
-    workflow = Workflow(name=name)
+
+    DerivativesDataSink.out_path_base = out_path_base
+
+    workflow = Workflow(name=name, base_dir=work_dir)
+
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold', 'bold_mask', 'movpar_file', 'skip_vols', 'csf_mask', 
                 'wm_mask', 'cortical_gm_mask']),
         name='inputnode')
+
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['confounds_file', 'confounds_metadata']),
         name='outputnode')
@@ -173,9 +182,9 @@ def init_bold_confs_wf(
         tcompcor.inputs.variance_threshold = 0.5
 
     # Set TR if present
-    if 'RepetitionTime' in metadata:
-        tcompcor.inputs.repetition_time = metadata['RepetitionTime']
-        acompcor.inputs.repetition_time = metadata['RepetitionTime']
+    if dt:
+        tcompcor.inputs.repetition_time = dt
+        acompcor.inputs.repetition_time = dt
 
     # Global and segment regressors
     mrg_lbl = pe.Node(niu.Merge(3), name='merge_rois', run_without_submitting=True)
@@ -224,9 +233,14 @@ def init_bold_confs_wf(
     rois_plot = pe.Node(ROIsPlot(colors=['b', 'magenta'], generate_report=True),
                         name='rois_plot', mem_gb=mem_gb)
 
-    ds_report_bold_rois = pe.Node(
-        DerivativesDataSink(desc='rois', keep_dtype=True),
-        name='ds_report_bold_rois', run_without_submitting=True,
+    ds_report_bold_rois = pe.Node(DerivativesDataSink(
+        base_directory=out_dir,
+        desc='rois', 
+        source_file=source_file,
+        suffix='reportlet',
+        keep_dtype=True),
+        name='ds_report_bold_rois', 
+        run_without_submitting=True, 
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     # Generate reportlet (CompCor)
@@ -235,18 +249,26 @@ def init_bold_confs_wf(
     compcor_plot = pe.Node(
         CompCorVariancePlot(metadata_sources=['tCompCor', 'aCompCor']),
         name='compcor_plot')
-    ds_report_compcor = pe.Node(
-        DerivativesDataSink(desc='compcorvar', keep_dtype=True),
-        name='ds_report_compcor', run_without_submitting=True,
+    ds_report_compcor = pe.Node(DerivativesDataSink(
+        base_directory=out_dir,
+        desc='compcorvar', 
+        source_file=source_file,
+        keep_dtype=True),
+        name='ds_report_compcor', 
+        run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     # Generate reportlet (Confound correlation)
     conf_corr_plot = pe.Node(
         ConfoundsCorrelationPlot(reference_column='global_signal', max_dim=70),
         name='conf_corr_plot')
-    ds_report_conf_corr = pe.Node(
-        DerivativesDataSink(desc='confoundcorr', keep_dtype=True),
-        name='ds_report_conf_corr', run_without_submitting=True,
+    ds_report_conf_corr = pe.Node(DerivativesDataSink(
+        base_directory=out_dir,
+        desc='confoundcorr', 
+        source_file=source_file,
+        keep_dtype=True),
+        name='ds_report_conf_corr', 
+        run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     workflow.connect([
