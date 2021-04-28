@@ -32,7 +32,7 @@ def init_generate_boldmask(preproc):
 
     mean_image = pe.Node(fsl.maths.MeanImage(
         in_file=preproc, out_file='out.nii.gz'), name='mean_image')
-    thr_mean = pe.Node(fsl.maths.Threshold(thresh=0, out_file='out.nii.gz',),
+    thr_mean = pe.Node(fsl.maths.Threshold(thresh=0, out_file='out.nii.gz', args='-bin'),
         name='thr_mean')
 
     workflow.connect([
