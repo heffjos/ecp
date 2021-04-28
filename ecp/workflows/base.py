@@ -1,18 +1,18 @@
 import os
 
 from niworkflows.interfaces import bids
-from nipype import Workflow, Node, IdentityInterface, MapNode
+from nipype import Workflow, Node, IdentityInterface, MapNode, Function
 
 from nipype.interfaces.nipy.preprocess import Trim
 from nipype.algorithms.confounds import NonSteadyStateDetector
 
-from .. import utils
-from ..interfaces.paths import (
+from ecp import utils
+from ecp.interfaces.paths import (
     PostFreeSurferFiles, HcpTaskVolumeFiles, HcpTaskCiftiFiles
 )
-from ..interfaces.afni import TProject
-from ..interfaces.confounds import GetHcpMovement
-from ..interfaces.workbench import (
+from ecp.interfaces.afni import TProject
+from ecp.interfaces.confounds import GetHcpMovement
+from ecp.interfaces.workbench import (
     CiftiConvertToNifti, 
     CiftiConvertFromNifti, 
     CiftiParcellate, 
@@ -21,7 +21,7 @@ from ..interfaces.workbench import (
 )
 
 from .anat import init_hcp_segment_anat_wf
-from .confounds import init_bold_confs_wf
+from .confounds import init_bold_confs_wf, init_timeseries_wf
 from .bold import init_generate_boldmask
 
 def init_cleanprep_wf(
@@ -728,3 +728,273 @@ def init_clean_cifti(
 
     return workflow
                 
+def init_bidsify_hcp_wf(
+    data_dir,
+    work_dir, 
+    out_dir,
+    subject,
+    tasks,
+    skip_begin,
+    skip_end,
+    name='bidsify_hcp_wf',
+):
+    """
+    Creates bidisfy_hcp workflow.
+
+    Parameters
+    ----------
+
+    data_dir: str
+        data directory holding subject folders
+    work_dir: str
+        working directory
+    out_dir: str
+        out directory. Final out directory is out_dir/bidsify_hcp
+    subject: str
+        subject name; data_dir expected to have a subject directory
+    tasks: list (str)
+        the task names in HCP format
+    skip_begin: list (int)
+        this option is intended for pre-upgrade scans. It removes this many 
+        volumes from the beginning of the HCP movement regressors file, because
+        this number of volumes were removed from the scan after preprocessing
+        (nifti and cifti match) but not the movement regresssors file.
+    skip_end: list (int)
+        this option is intended for pre-upgrade scans. It removes this many 
+        volumes from the end of the HCP movement regressors file, because
+        this number of volumes were removed from the scan after preprocessing
+        (nifti and cifti match) but not the movement regresssors file.
+
+    Outputs
+    -------
+
+    bidsify_hcp_wf: Workflow
+        the cleanprep workflow
+    """
+
+    DerivativesDataSink = bids.DerivativesDataSink
+    DerivativesDataSink.out_path_base = 'bidsify_hcp'
+
+    anat_name_template = os.path.join('anat', f'sub-{subject}_T1.nii.gz')
+
+    bidsify_hcp_wf = Workflow(name=name, base_dir=work_dir)
+    
+    anat_files = PostFreeSurferFiles(base_dir=data_dir,
+                                     subject=subject).run().outputs
+
+    hcp_segment_anat_wf = init_hcp_segment_anat_wf()
+    inputnode = hcp_segment_anat_wf.inputs.inputnode
+    inputnode.brainmask_fs = anat_files.brainmask_fs
+    inputnode.l_atlasroi = anat_files.L_atlasroi_32k_fs_LR
+    inputnode.l_midthickness = anat_files.L_midthickness_32k_fs_LR
+    inputnode.l_white = anat_files.L_white_32k_fs_LR
+    inputnode.l_pial = anat_files.L_pial_32k_fs_LR
+    inputnode.r_atlasroi = anat_files.R_atlasroi_32k_fs_LR
+    inputnode.r_midthickness = anat_files.R_midthickness_32k_fs_LR
+    inputnode.r_white = anat_files.R_white_32k_fs_LR
+    inputnode.r_pial = anat_files.R_pial_32k_fs_LR
+    inputnode.wmparc = anat_files.wmparc
+    inputnode.ROIs = anat_files.subcortical
+
+    ds_csf_mask = Node(DerivativesDataSink(
+        base_directory=out_dir, desc='csf', source_file=anat_name_template,
+        space='mni', suffix='mask'), name='ds_csf_mask')
+    ds_wm_mask = Node(DerivativesDataSink(
+        base_directory=out_dir, desc='wm', source_file=anat_name_template,
+        space='mni', suffix='mask'), name='ds_wm_mask')
+    ds_cortical_gm_mask = Node(DerivativesDataSink(
+        base_directory=out_dir, desc='cortgm', source_file=anat_name_template,
+        space='mni', suffix='mask'), name='ds_coritical_gm_mask')
+
+    bidsify_hcp_wf.connect([
+        (hcp_segment_anat_wf, ds_csf_mask, [('outputnode.csf_mask', 'in_file')]),
+        (hcp_segment_anat_wf, ds_wm_mask, [('outputnode.wm_mask', 'in_file')]),
+        (hcp_segment_anat_wf, ds_cortical_gm_mask, [('outputnode.cort_gm_mask', 'in_file')]),
+    ])
+
+    out_func_dir = os.path.join(out_dir, 
+                                DerivativesDataSink.out_path_base,
+                                f'sub-{subject}',
+                                'func')
+
+    for task, task_skip_begin, task_skip_end in zip(tasks, 
+                                                    skip_begin, 
+                                                    skip_end):
+
+        out_vol = utils.hcp_to_bids(task, subject)
+        entities = utils.get_entities(out_vol)
+        out_vol = os.path.join(out_func_dir, out_vol)
+
+        out_cifti = utils.generate_bold_name(
+            subject, entities['task'], 'bold', 'dtseries.nii', dir=entities['dir'], 
+            run=entities['run'], space='fsLR32k')
+        out_cifti = os.path.join(out_func_dir, out_cifti)
+
+        task_vol_files = HcpTaskVolumeFiles(
+            mninonlinear=anat_files.mninonlinear,
+            subject=subject, 
+            task=task).run().outputs
+
+        task_cifti_files = HcpTaskCiftiFiles(
+            mninonlinear=anat_files.mninonlinear,
+            subject=subject, 
+            task=task).run().outputs
+
+        func_name_template = os.path.join('func', utils.hcp_to_bids(task, subject))
+        task_wf = Workflow(name=task + '_wf')
+
+        movement = Node(
+            GetHcpMovement(hcp_movement=task_vol_files.movement_regressors,
+                           skip_begin=int(task_skip_begin),
+                           skip_end=int(task_skip_end)),
+            name='movement')
+        
+        link_vol = Node(Function(input_name=['originalfile', 'newfile'],
+                                 function=_hardlink), name='link_vol')
+        link_vol.inputs.originalfile = task_vol_files.preproc
+        link_vol.inputs.newfile = out_vol
+
+        link_cifti = Node(Function(input_name=['originalfile', 'newfile'],
+                                   function=_hardlink), name='link_cifti')
+        link_cifti.inputs.originalfile = task_cifti_files.preproc
+        link_cifti.inputs.newfile = out_cifti
+
+        generate_boldmask = init_generate_boldmask(task_vol_files.preproc)
+        ds_boldmask = Node(DerivativesDataSink(
+            base_directory=out_dir, 
+            desc='confounds',
+            source_file=func_name_template, 
+            suffix='boldmask'),
+            name='ds_boldmask')
+
+        ds_movement = Node(DerivativesDataSink(
+            base_directory=out_dir, 
+            desc='movpar', 
+            source_file=func_name_template, 
+            suffix='timeseries'), 
+            name='ds_movement')
+
+        task_wf.connect([
+            # derivatives
+            (generate_boldmask, ds_boldmask, [('outputnode.bold_mask', 'in_file')]),
+            (movement, ds_movement, [('movement', 'in_file')]),
+        ])
+        task_wf.add_nodes([link_vol, link_cifti])
+
+        bidsify_hcp_wf.add_nodes([task_wf])
+
+    return bidsify_hcp_wf
+
+def init_multi_timeseries_wf(
+    parameters,
+    csf_mask,
+    wm_mask,
+    cortical_gm_mask,
+    work_dir,
+    out_dir,
+    out_path_base,
+    name='multi_timeseries_wf'
+):
+    """
+    Creates nuissasnce timeseries for nifti files.
+
+    Example:
+        wf = init_timeseries_wf(
+            parmaeters = [
+                {
+                    'bold': 'sub-EC1008_task-rest_dir-ap_run-1_bold.nii.gz',
+                    'bold_mask': 'sub-EC1008_task-rest_dir-ap_run-1_desc-confounds_boldmask.nii.gz',
+                    'movpar_file': 'sub-EC1008_task-rest_dir-ap_run-1_desc-movpar_timeseries.tsv',
+                    'skip_vols': 1,
+                    'wf_name': 'rest_ap_1',
+                },
+                {
+                    'bold': 'sub-EC1008_task-rest_dir-pa_run-1_bold.nii.gz',
+                    'bold_mask': 'sub-EC1008_task-rest_dir-pa_run-1_desc-confounds_boldmask.nii.gz',
+                    'movpar_file': 'sub-EC1008_task-rest_dir-pa_run-1_desc-movpar_timeseries.tsv',
+                    'skip_vols': 3,
+                    'wf_name': 'rest_pa_1',
+                },
+            ]
+            csf_mask = 'sub-EC1008_space-mni_desc-csf_mask.nii.gz',
+            wm_mask = 'sub-EC1008_space-mni_desc-wm_mask.nii.gz',
+            work_dir = '/path/to/work_dir',
+            out_dir = '/path/to/out_dir',
+            out_path_base = 'no_skip_vols',
+            skip_vols = Nne
+        )
+
+    Parameters
+    ----------
+
+    parameters: list of dicts
+        dict keys - bold, bold_mask, movpar_files, skip_vols, wf_name
+            bold is a list of preprocessed bold files
+            bold_mask is a list of bold masks
+            movpar_files is a list of movement parameter files
+            skip_vols is a list of skipped volumes
+            wf_name a list of workflow names for each bold
+    csf_mask: str
+        path to subject csf mask
+    wm_mask: str
+        path to subject white matter mask
+    work_dir: str
+        path to working directory
+    out_dir: str
+        path to out directory
+    out_path_base : str
+        the new directory for the output, to be crteate within out_dir
+
+    Outputs
+    -------
+
+    multi_timeseries_wf: Workflow
+        the timeseries workflow
+    """
+
+    DerivativesDataSink = bids.DerivativesDataSink
+    DerivativesDataSink.out_path_base = out_path_base
+
+    multi_timeseries_wf = Workflow(name=name, base_dir=work_dir)
+
+    anat = Node(IdentityInterface(
+        fields=['csf_mask', 'wm_mask', 'cortical_gm_mask']), name='anat')
+    anat.inputs.csf_mask = csf_mask
+    anat.inputs.wm_mask = wm_mask
+    anat.inputs.cortical_gm_mask = cortical_gm_mask
+
+    for parameter in parameters:
+
+        timeseries_wf = init_timeseries_wf(
+            out_dir, 
+            out_path_base, 
+            parameter['source_file'],
+            parameter['dt'],
+            name=parameter['wf_name'])
+        timeseries_wf.inputs.inputnode.bold_std = parameter['bold']
+        timeseries_wf.inputs.inputnode.bold_mask_std = parameter['bold_mask']
+        timeseries_wf.inputs.inputnode.movpar_file = parameter['movpar_file']
+        timeseries_wf.inputs.inputnode.skip_vols = parameter['skip_vols']
+
+        multi_timeseries_wf.connect([
+            (anat, timeseries_wf, [('csf_mask', 'inputnode.csf_mask'),
+                                   ('wm_mask', 'inputnode.wm_mask'),
+                                   ('cortical_gm_mask', 'inputnode.cortical_gm_mask')])
+        ])
+
+    return multi_timeseries_wf
+
+
+def _hardlink(originalfile, newfile):
+    import os
+    from shutil import copyfile
+
+    out_dir = os.path.dirname(newfile)
+    os.makedirs(out_dir, exist_ok=True)
+
+    try:
+        os.link(originalfile, newfile)
+    except PermissionError:
+        copyfile(originalfile, newfile)
+        
+    
