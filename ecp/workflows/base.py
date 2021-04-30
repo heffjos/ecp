@@ -229,6 +229,7 @@ def init_clean_wf(
     polort=-1,
     passband=None,
     stopband=None,
+    desc_entity='concatenated',
     name='clean_wf'
 ):
     """
@@ -260,6 +261,7 @@ def init_clean_wf(
             polort=2,
             passband=[0.01, 0.1],
             stopband=None,
+            desc_entity='concatenated',
             name='really_cool_name'
         )
 
@@ -305,6 +307,8 @@ def init_clean_wf(
         fbot, ftop
     stopband : list
         sbot, stop
+    desc_entity : str
+        desc entity value in final output file names
     name : str
         workflow name
 
@@ -463,7 +467,7 @@ def init_clean_wf(
 
     ds_subject_zvals = Node(DerivativesDataSink(
         base_directory=out_dir,
-        desc='concatenated',
+        desc=desc_entity,
         space=parcellation_space,
         suffix='zvals.pconn',
         source_file=source_file),
@@ -471,7 +475,7 @@ def init_clean_wf(
 
     ds_subject_rvals = Node(DerivativesDataSink(
         base_directory=out_dir,
-        desc='concatenated',
+        desc=desc_entity,
         space=parcellation_space,
         suffix='rvals.pconn',
         source_file=source_file),
@@ -479,7 +483,7 @@ def init_clean_wf(
 
     ds_subject_cov = Node(DerivativesDataSink(
         base_directory=out_dir,
-        desc='concatenated',
+        desc=desc_entity,
         space=parcellation_space,
         suffix='cov.pconn',
         source_file=source_file),
@@ -632,7 +636,7 @@ def init_clean_cifti(
         Here are teh workflow steps:
             1. Convert cifti to nifti
             2. Remove nuisance regressors with 3dTproject
-            3. Covnert 'cleaned' nifti back to cifti
+            3. Convert 'cleaned' nifti back to cifti
     """
 
     DerivativesDataSink = BIDSDerivatives
@@ -826,7 +830,7 @@ def init_bidsify_hcp_wf(
         out_vol = os.path.join(out_func_dir, out_vol)
 
         out_cifti = utils.generate_bold_name(
-            subject, entities['task'], 'bold', 'dtseries.nii', dir=entities['dir'], 
+            subject, entities['task'], 'bold', '.dtseries.nii', dir=entities['dir'], 
             run=entities['run'], space='fsLR32k')
         out_cifti = os.path.join(out_func_dir, out_cifti)
 
@@ -912,7 +916,7 @@ def init_multi_timeseries_wf(
                     'bold': 'sub-EC1008_task-rest_dir-pa_run-1_bold.nii.gz',
                     'bold_mask': 'sub-EC1008_task-rest_dir-pa_run-1_desc-confounds_boldmask.nii.gz',
                     'movpar_file': 'sub-EC1008_task-rest_dir-pa_run-1_desc-movpar_timeseries.tsv',
-                    'skip_vols': 3,
+                    'skip_vols': None,
                     'wf_name': 'rest_pa_1',
                 },
             ]
@@ -921,7 +925,6 @@ def init_multi_timeseries_wf(
             work_dir = '/path/to/work_dir',
             out_dir = '/path/to/out_dir',
             out_path_base = 'no_skip_vols',
-            skip_vols = Nne
         )
 
     Parameters
@@ -974,7 +977,6 @@ def init_multi_timeseries_wf(
         timeseries_wf.inputs.inputnode.bold_std = parameter['bold']
         timeseries_wf.inputs.inputnode.bold_mask_std = parameter['bold_mask']
         timeseries_wf.inputs.inputnode.movpar_file = parameter['movpar_file']
-        timeseries_wf.inputs.inputnode.skip_vols = parameter['skip_vols']
 
         multi_timeseries_wf.connect([
             (anat, timeseries_wf, [('csf_mask', 'inputnode.csf_mask'),
@@ -982,6 +984,21 @@ def init_multi_timeseries_wf(
                                    ('cortical_gm_mask', 'inputnode.cortical_gm_mask')])
         ])
 
+        if parameter['skip_vols'] is None:
+
+            calc_dummy_scans = Node(NonSteadyStateDetector(
+                in_file=parameter['bold']), name='calc_dummy_scans') 
+
+            multi_timeseries_wf.connect([
+                (calc_dummy_scans, timeseries_wf,
+                    [('n_volumes_to_discard', 'inputnode.skip_vols')]),
+            ])
+
+        else:
+
+            timeseries_wf.inputs.inputnode.skip_vols = parameter['skip_vols']
+
+            
     return multi_timeseries_wf
 
 

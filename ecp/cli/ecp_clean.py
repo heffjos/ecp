@@ -82,12 +82,17 @@ def get_parser():
     """Define parse object"""
 
     parser = ArgumentParser(description='cleans prepped ECP resting state data')
-    parser.add_argument('cleanprep_dir', action='store', help='the cleanprep directory')
+    parser.add_argument('bidsify_dir', action='store', help='the bidsify directory')
+    parser.add_argument('multitimeseries_dir', action='store', help='multitimeseries directory')
     parser.add_argument('work_dir', action='store', help='the working directory')
     parser.add_argument('out_dir', action='store', help='the output directory')
-    parser.add_argument('clean_name', action='store', help='name for cleaning process')
-    parser.add_argument('spec_file', action='store', help='csv spec file')
     parser.add_argument('participant', action='store', help='participant to be cleaned')
+    parser.add_argument('clean_name', action='store', help='name for cleaning process')
+    parser.add_argument('clean_desc', action='store', help='description entity value')
+
+    parser.add_argument('--hcp_funcs', action='store', help='hcp func names', nargs='+',
+                        required=True)
+
     parser.add_argument('--n-procs', action='store', type=int, default=8,
                         help='number of processors to use')
 
@@ -116,12 +121,8 @@ def get_parser():
     parser.add_argument('--parcellations', action='store', nargs='+',
                         help='cifti parcellation templates',
                         choices=parcellations)
-
-    skip_vols = parser.add_mutually_exclusive_group()
-    skip_vols.add_argument('--skip-vols', action='store', type=int,
-                           help='remove begining n volumes before anything is done')
-    skip_vols.add_argument('--remove-non-steady-state', action='store_true',
-                           help='remove marked non steady state volumes before anything is done')
+    parser.add_argument('--remove-non-steady-state', action='store_true',
+                        help='remove marked non steady state volumes before anything is done')
 
     acompcor = parser.add_mutually_exclusive_group()
     acompcor.add_argument('--n-acompcor-separate', action='store', type=int,
@@ -151,6 +152,9 @@ def get_parser():
                         help='save the clean pconn for each in cifti')
     parser.add_argument('--save-clean-covariance', action='store_true',
                         help='save the clean covariance for each in cifti')
+
+    parser.add_argument('--testing', action='store_true',
+                        help='do everything excep run the workflow')
                         
 
     return parser
@@ -184,18 +188,20 @@ def setup_clean(args):
 
     """
         
-    cleanprep_dir = args.cleanprep_dir
-    work_dir = args.work_dir
-    out_dir = args.out_dir
-    clean_name = args.clean_name
-    spec_file = args.spec_file
+    bidsify_dir = Path(args.bidsify_dir).resolve()
+    mts_dir = Path(args.multitimeseries_dir).resolve()
+    work_dir = Path(args.work_dir).resolve()
+    out_dir = Path(args.out_dir).resolve()
     participant = args.participant
+    hcp_funcs = args.hcp_funcs
+    clean_name = args.clean_name
 
-    spec = pd.read_csv(spec_file, sep='\t')
-    spec = spec[(spec.usable_data == 1)]
+    participant_bidsify_dir = bidsify_dir / f'sub-{participant}' / 'func'
+    participant_mts_dir = mts_dir / f'sub-{participant}' / 'func'
 
-    if participant not in spec.subjects.values:
-        raise Exception(f'Input participant {participant} is not in spec_file.')
+    # check if participant was run previously
+    if not participant_mts_dir.is_dir():
+        raise Exception(f'Subject directory does not exist: {participant_mts_dir}')
 
     if args.pvar_acompcor_combined and args.pvar_acompcor_combined > 50:
         raise Exception('Maximum percent variance allowed for acompcor is 50'
@@ -216,17 +222,29 @@ def setup_clean(args):
             common_regressors.extend(alias_regressors[grouped_regressors])
 
     setups = {}
-    spec = spec[spec.subjects == participant]
-    for func, task_info in spec.groupby(['func']):
+    for func in hcp_funcs:
         info = {}
 
-        clean_prep_files = CleanPrepFiles(
-            cleanprep_dir=cleanprep_dir,
-            subject=participant,
-            hcp_task=func).run().outputs
+        bold = utils.hcp_to_bids(func, participant)
+        entities = utils.get_entities(bold)
+
+        def _generate_bids_name(subject, suffix, ext, desc, space=None):
+            return utils.generate_bold_name(
+                subject, entities['task'], suffix, ext, dir=entities['dir'], 
+                run=entities['run'], desc=desc, space=space)
+
+        # make paths to relevant files
+        confounds_tsv = _generate_bids_name(participant, 'timeseries', '.tsv', 'confounds')
+        confounds_tsv = participant_mts_dir / confounds_tsv
+
+        confounds_json = _generate_bids_name(participant, 'timeseries', '.json', 'confounds')
+        confounds_json = participant_mts_dir / confounds_json
+
+        cifti = _generate_bids_name(participant, 'bold', '.dtseries.nii', None, 'fsLR32k')
+        cifti = participant_bidsify_dir / cifti
         
-        confounds = pd.read_csv(clean_prep_files.confounds_tsv, sep='\t')
-        with open(clean_prep_files.confounds_json) as in_json:
+        confounds = pd.read_csv(confounds_tsv, sep='\t')
+        with open(confounds_json) as in_json:
             confounds_json = json.load(in_json)
 
         # handle acompcor
@@ -305,38 +323,28 @@ def setup_clean(args):
             tcompcor_regressors = []
 
         # handle source file - make it very basic
-        entities = utils.get_entities(Path(clean_prep_files.cifti).name)
-        source_file = utils.generate_bold_name(
-            entities['sub'],
-            entities['task'],
-            'bold',
-            '.dtseries.nii',
-            session=entities.get('session'),
-            dir=entities.get('dir'),
-            run=entities.get('run'))
+        source_file = _generate_bids_name(participant, 'bold', '.dtseries.nii', None)
 
         # get dt
-        dt = nib.load(clean_prep_files.cifti).header.matrix[0].series_step
+        dt = nib.load(cifti).header.matrix[0].series_step
 
         # get skip skip_vols
-        with open(clean_prep_files.confounds_tsv) as f:
+        with open(confounds_tsv) as f:
             lines = f.readlines()
         header = lines[0].split()
 
         if args.remove_non_steady_state:
             skip_vols = len([x for x in header
                              if x.startswith('non_steady_state_outlier')])
-        elif args.skip_vols:
-            skip_vols = args.skip_vols
         else:
             skip_vols = 0
 
         # assign to dictionary
-        info['cifti'] = clean_prep_files.cifti
+        info['cifti'] = cifti
         info['source_file'] = source_file
         info['fd_censor'] = args.fd_censor
         info['dvars_censor'] = args.dvars_censor
-        info['confounds_tsv'] = clean_prep_files.confounds_tsv
+        info['confounds_tsv'] = confounds_tsv
         info['confounds'] = (common_regressors 
                              + acompcor_regressors 
                              + tcompcor_regressors)
@@ -410,8 +418,10 @@ def run_clean_wf(args):
     work_dir = Path(args.work_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
     clean_name = args.clean_name
+    clean_desc = args.clean_desc
     participant = args.participant
     n_procs = args.n_procs
+    testing = args.testing
 
     clean_out_dir = out_dir.joinpath(clean_name, f'sub-{participant}')
     clean_out_dir.mkdir(parents=True, exist_ok=True)
@@ -441,6 +451,7 @@ def run_clean_wf(args):
             with pkg_resources.path(data, 'glasser_conte.dlabel.nii') as tmp:
                 parcellation_file = str(tmp)
 
+        wf_name = f'{clean_name}_{participant}_{parcellation}_{args.clean_desc}_clean'
         clean_wf = init_clean_wf(
             in_files,
             parcellation_file,
@@ -457,9 +468,11 @@ def run_clean_wf(args):
             args.polort,
             args.passband,
             args.stopband,
-            f'{participant}_{parcellation}_clean_wf')
+            args.clean_desc,
+            wf_name)
 
-        clean_wf.run(plugin='MultiProc', plugin_args={'n_procs': n_procs})
+        if not args.testing:
+            clean_wf.run(plugin='MultiProc', plugin_args={'n_procs': n_procs})
 
     return 0
 
