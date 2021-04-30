@@ -16,7 +16,8 @@ setup(
     packages=find_packages(),
     entry_points={
         'gui_scripts': [
-            'ecp_cleanprep=ecp.cli.ecp_cleanprep:main',
+            'ecp_bidsify_hcp=ecp.cli.ecp_bidsify_hcp:main',
+            'ecp_multitimeseries=ecp.cli.ecp_multitimeseries:main',
             'ecp_clean=ecp.cli.ecp_clean:main',
         ],
     },
