@@ -986,8 +986,9 @@ def init_multi_timeseries_wf(
 
         if parameter['skip_vols'] is None:
 
+            calc_dummy_scans_name = 'calc_dummy_scans_' + parameter['wf_name']
             calc_dummy_scans = Node(NonSteadyStateDetector(
-                in_file=parameter['bold']), name='calc_dummy_scans') 
+                in_file=parameter['bold']), name=calc_dummy_scans_name) 
 
             multi_timeseries_wf.connect([
                 (calc_dummy_scans, timeseries_wf,
