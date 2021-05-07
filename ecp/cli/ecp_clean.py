@@ -407,7 +407,7 @@ def create_confound_files(setup, args, out_dir):
     np.savetxt(out_censor, censor, fmt='%d')
 
     setup['ort_tsv'] = out_tsv
-    setup['ort_1D'] = out_1D
+    setup['ort_1D'] = out_1D if setup['confounds'] else None
     setup['censor'] = out_censor
 
 def run_clean_wf(args):
@@ -444,6 +444,12 @@ def run_clean_wf(args):
         in_files['ort'].append(setup['ort_1D'])
         in_files['dt'].append(setup['dt'])
         in_files['trim'].append(setup['skip_vols'])
+
+    is_none = [x is None for x in in_files['ort']]
+    if all(is_none):
+        in_files['ort'] = None
+    elif any(is_none):
+        raise Exception('Cannot mix None ort files')
 
     for parcellation in args.parcellations:
 
